@@ -1,7 +1,7 @@
 name: app_postos
 description: MVP do aplicativo WK Cliente para a rede de postos Grupo WK.
 publish_to: "none"
-version: 0.2.1+3
+version: 0.3.0+4
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -19,4 +19,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/wk_logo.b64
+    - assets/wk_logo.webp
