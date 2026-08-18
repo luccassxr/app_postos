@@ -1,1179 +1,456 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
-void main() => runApp(const WKClienteApp());
+import 'app_controller.dart';
+import 'core/theme/app_theme.dart';
+import 'core/utils/formatters.dart';
+import 'models/coupon_model.dart';
+import 'models/transaction_model.dart';
+import 'services/auth_service.dart';
+import 'services/coupon_service.dart';
+import 'services/station_service.dart';
+import 'widgets/brand_logo.dart';
 
-class WKColors {
-  static const bg = Color(0xFF020712);
-  static const bg2 = Color(0xFF07162D);
-  static const card = Color(0xFF0A1729);
-  static const card2 = Color(0xFF0E1D34);
-  static const blue = Color(0xFF1768FF);
-  static const red = Color(0xFFFF1830);
-  static const green = Color(0xFF25D87A);
-  static const text = Color(0xFFF7F9FF);
-  static const muted = Color(0xFFA7B1C3);
-  static const border = Color(0xFF2B3C57);
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppController.instance.initialize();
+  runApp(const WKClienteApp());
 }
 
 class WKClienteApp extends StatelessWidget {
   const WKClienteApp({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'WK Cliente',
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: WKColors.bg,
-        colorScheme: const ColorScheme.dark(
-          primary: WKColors.blue,
-          secondary: WKColors.red,
-          surface: WKColors.card,
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: AppController.instance,
+        builder: (_, __) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'WK Cliente',
+          theme: buildTheme(),
+          home: AppController.instance.isLoggedIn ? const MainShell() : const LoginScreen(),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: WKColors.card2,
-          hintStyle: const TextStyle(color: WKColors.muted),
-          prefixIconColor: WKColors.muted,
-          suffixIconColor: WKColors.muted,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: WKColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: WKColors.blue, width: 1.5),
-          ),
-        ),
-      ),
-      home: const SplashPage(),
-    );
+      );
+}
+
+void showMessage(BuildContext context, String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override State<LoginScreen> createState() => _LoginScreenState();
+}
+class _LoginScreenState extends State<LoginScreen> {
+  final identifier = TextEditingController(), password = TextEditingController();
+  bool busy = false;
+  @override void dispose() { identifier.dispose(); password.dispose(); super.dispose(); }
+  Future<void> submit() async {
+    if (identifier.text.trim().isEmpty || password.text.isEmpty) { showMessage(context, 'Preencha o e-mail/CPF e a senha.'); return; }
+    setState(() => busy = true);
+    try { await AppController.instance.login(identifier.text, password.text); } on AuthException catch (error) { if (mounted) showMessage(context, error.message); }
+    if (mounted) setState(() => busy = false);
   }
+  @override Widget build(BuildContext context) => Scaffold(body: SafeArea(child: ListView(padding: const EdgeInsets.all(24), children: [
+    const SizedBox(height: 48), const BrandLogo(size: 76), const Text('WK Cliente', textAlign: TextAlign.center, style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+    const SizedBox(height: 32), TextField(controller: identifier, decoration: const InputDecoration(labelText: 'E-mail ou CPF', prefixIcon: Icon(Icons.person_outline))), const SizedBox(height: 12),
+    TextField(controller: password, obscureText: true, onSubmitted: (_) => submit(), decoration: const InputDecoration(labelText: 'Senha', prefixIcon: Icon(Icons.lock_outline))), const SizedBox(height: 18),
+    FilledButton(onPressed: busy ? null : submit, child: Text(busy ? 'Entrando...' : 'Entrar')), TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())), child: const Text('Criar cadastro')),
+  ])));
 }
 
-class WKBackdrop extends StatelessWidget {
-  final Widget child;
-  const WKBackdrop({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -0.45),
-          radius: 1.2,
-          colors: [Color(0xFF0A2D63), WKColors.bg2, WKColors.bg, Color(0xFF000308)],
-          stops: [0, .35, .72, 1],
-        ),
-      ),
-      child: child,
-    );
+class RegisterScreen extends StatefulWidget { const RegisterScreen({super.key}); @override State<RegisterScreen> createState() => _RegisterScreenState(); }
+class _RegisterScreenState extends State<RegisterScreen> {
+  final name = TextEditingController(), cpf = TextEditingController(), phone = TextEditingController(), email = TextEditingController(), password = TextEditingController(), confirmation = TextEditingController();
+  bool terms = false, busy = false;
+  @override void dispose() { for (final c in [name, cpf, phone, email, password, confirmation]) { c.dispose(); } super.dispose(); }
+  Future<void> submit() async {
+    if (password.text != confirmation.text) { showMessage(context, 'As senhas não conferem.'); return; }
+    setState(() => busy = true);
+    try {
+      await AppController.instance.register(name: name.text, cpf: cpf.text, phone: phone.text, email: email.text, password: password.text, acceptedTerms: terms);
+      if (mounted) Navigator.pop(context);
+    } on AuthException catch (error) { if (mounted) showMessage(context, error.message); }
+    if (mounted) setState(() => busy = false);
   }
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Criar conta')), body: ListView(padding: const EdgeInsets.all(20), children: [
+    for (final field in [(name, 'Nome completo', TextInputType.name), (cpf, 'CPF', TextInputType.number), (phone, 'Telefone', TextInputType.phone), (email, 'E-mail', TextInputType.emailAddress)]) ...[TextField(controller: field.$1, keyboardType: field.$3, decoration: InputDecoration(labelText: field.$2)), const SizedBox(height: 10)],
+    TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'Senha (mínimo 6 caracteres)')), const SizedBox(height: 10), TextField(controller: confirmation, obscureText: true, decoration: const InputDecoration(labelText: 'Confirmar senha')),
+    CheckboxListTile(contentPadding: EdgeInsets.zero, value: terms, onChanged: (value) => setState(() => terms = value ?? false), title: const Text('Aceito os termos de uso e a política de privacidade.')),
+    FilledButton(onPressed: busy ? null : submit, child: Text(busy ? 'Criando...' : 'Criar conta')),
+  ]));
 }
 
-class WKLogo extends StatefulWidget {
-  final double width;
-  final bool slogan;
-  const WKLogo({super.key, this.width = 170, this.slogan = false});
-
-  @override
-  State<WKLogo> createState() => _WKLogoState();
-}
-
-class _WKLogoState extends State<WKLogo> {
-  static Future<Uint8List>? _cachedLogo;
-
-  Future<Uint8List> _loadLogo() {
-    _cachedLogo ??= rootBundle.loadString('assets/wk_logo.b64').then((value) {
-      final clean = value.replaceAll(RegExp(r'\s+'), '');
-      return base64Decode(clean);
-    });
-    return _cachedLogo!;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: widget.width),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FutureBuilder<Uint8List>(
-            future: _loadLogo(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return Image.memory(
-                  snapshot.data!,
-                  width: widget.width,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => _logoFallback(),
-                );
-              }
-              if (snapshot.hasError) return _logoFallback();
-              return SizedBox(
-                width: widget.width,
-                height: widget.width * .52,
-                child: const Center(
-                  child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-              );
-            },
-          ),
-          if (widget.slogan) ...[
-            const SizedBox(height: 6),
-            const Text(
-              'Confia no Senhor de todo\no seu coração!',
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontStyle: FontStyle.italic,
-                color: WKColors.text,
-                height: 1.25,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _logoFallback() {
-    return Container(
-      width: widget.width,
-      height: widget.width * .48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: WKColors.red, width: 2),
-        gradient: const LinearGradient(colors: [Color(0xFF183A8D), Color(0xFF07162D)]),
-      ),
-      alignment: Alignment.center,
-      child: const Text('GRUPO WK', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
-    );
-  }
-}
-
-class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
-
-  @override
-  State<SplashPage> createState() => _SplashPageState();
-}
-
-class _SplashPageState extends State<SplashPage> {
-  @override
-  void initState() {
-    super.initState();
-    Timer(const Duration(milliseconds: 1600), () {
-      if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: WKBackdrop(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(),
-              const WKLogo(width: 220, slogan: true),
-              const Spacer(),
-              const Text('Carregando', style: TextStyle(color: WKColors.muted)),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: 180,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: const LinearProgressIndicator(
-                    minHeight: 4,
-                    backgroundColor: WKColors.border,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 44),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final login = TextEditingController();
-  final password = TextEditingController();
-  bool hide = true;
-  bool loading = false;
-
-  Future<void> enter() async {
-    setState(() => loading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainShell()));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: WKBackdrop(
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 32),
-            children: [
-              const Center(child: WKLogo(width: 180, slogan: true)),
-              const SizedBox(height: 34),
-              const Text('Acesse sua conta', style: TextStyle(fontSize: 31, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              const Text(
-                'Entre para acompanhar seus pontos, benefícios e abastecimentos.',
-                style: TextStyle(color: WKColors.muted, fontSize: 16, height: 1.4),
-              ),
-              const SizedBox(height: 24),
-              WKCard(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: login,
-                      decoration: const InputDecoration(
-                        hintText: 'E-mail ou CPF',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: password,
-                      obscureText: hide,
-                      decoration: InputDecoration(
-                        hintText: 'Senha',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => hide = !hide),
-                          icon: Icon(hide ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => toast(context, 'Recuperação de senha será conectada ao Firebase.'),
-                        child: const Text('Esqueci minha senha'),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    PrimaryButton(
-                      label: loading ? 'ENTRANDO...' : 'ENTRAR',
-                      onTap: loading ? null : enter,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage())),
-                  child: const Text('Ainda não tem conta?  Criar cadastro'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
-
-  @override
-  State<RegisterPage> createState() => _RegisterPageState();
-}
-
-class _RegisterPageState extends State<RegisterPage> {
-  bool accepted = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final fields = [
-      ('Nome completo', Icons.person_outline),
-      ('CPF', Icons.badge_outlined),
-      ('Telefone', Icons.phone_outlined),
-      ('E-mail', Icons.mail_outline),
-      ('Senha', Icons.lock_outline),
-      ('Confirmar senha', Icons.lock_outline),
-    ];
-
-    return Scaffold(
-      body: WKBackdrop(
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
-            children: [
-              Row(
-                children: [
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
-                  const Spacer(),
-                  const WKLogo(width: 115),
-                  const Spacer(),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text('Crie sua conta', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              const Text('É rápido, fácil e grátis!', style: TextStyle(color: WKColors.muted)),
-              const SizedBox(height: 18),
-              WKCard(
-                child: Column(
-                  children: [
-                    for (final f in fields) ...[
-                      TextField(
-                        obscureText: f.$1.toLowerCase().contains('senha'),
-                        decoration: InputDecoration(hintText: f.$1, prefixIcon: Icon(f.$2)),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    CheckboxListTile(
-                      value: accepted,
-                      onChanged: (v) => setState(() => accepted = v ?? false),
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: const Text(
-                        'Li e aceito os termos de uso e a política de privacidade.',
-                        style: TextStyle(fontSize: 13.5),
-                      ),
-                    ),
-                    PrimaryButton(
-                      label: 'CRIAR CONTA',
-                      onTap: accepted
-                          ? () => Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(builder: (_) => const MainShell()),
-                                (_) => false,
-                              )
-                          : null,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
+class MainShell extends StatefulWidget { const MainShell({super.key}); @override State<MainShell> createState() => _MainShellState(); }
 class _MainShellState extends State<MainShell> {
   int index = 0;
-  final pages = const [HomePage(), StationsPage(), BenefitsPage(), ProfilePage()];
+  @override Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(child: IndexedStack(index: index, children: const [HomeScreen(), StationsScreen(), BenefitsScreen(), ProfileScreen()])),
+    bottomNavigationBar: NavigationBar(selectedIndex: index, onDestinationSelected: (value) => setState(() => index = value), destinations: const [
+      NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Início'), NavigationDestination(icon: Icon(Icons.local_gas_station_outlined), label: 'Postos'), NavigationDestination(icon: Icon(Icons.local_offer_outlined), label: 'Cupons'), NavigationDestination(icon: Icon(Icons.person_outline), label: 'Perfil'),
+    ]),
+  );
+}
+
+class HomeScreen extends StatelessWidget { const HomeScreen({super.key});
+  @override Widget build(BuildContext context) => AnimatedBuilder(animation: AppController.instance, builder: (_, __) { final app = AppController.instance, user = app.user!; return ListView(padding: const EdgeInsets.all(18), children: [
+    Text('Olá, ${user.name.split(' ').first}!', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), const Text('Bem-vindo ao programa de fidelidade WK.'), const SizedBox(height: 16),
+    Card(child: ListTile(leading: const Icon(Icons.stars, size: 38), title: const Text('Saldo de pontos'), subtitle: Text('${app.points}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), trailing: IconButton(icon: const Icon(Icons.qr_code_2, size: 36), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScreen()))))),
+    const SizedBox(height: 12), Row(children: [Expanded(child: FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScreen())), icon: const Icon(Icons.qr_code), label: const Text('Meu QR'))), const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())), icon: const Icon(Icons.receipt_long), label: const Text('Extrato')))]),
+    const SizedBox(height: 20), const Text('Movimentações recentes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), if (app.transactions.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Nenhuma movimentação registrada.'))) else for (final item in app.transactions.take(3)) TransactionTile(item),
+  ]); });
+}
+
+class QrScreen extends StatelessWidget {
+  const QrScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final app = AppController.instance;
     return Scaffold(
-      body: WKBackdrop(child: SafeArea(child: pages[index])),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        height: 72,
-        backgroundColor: const Color(0xFF030C1B),
-        indicatorColor: const Color(0xFF123A83),
-        onDestinationSelected: (v) => setState(() => index = v),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Início'),
-          NavigationDestination(icon: Icon(Icons.local_gas_station_outlined), selectedIcon: Icon(Icons.local_gas_station_rounded), label: 'Postos'),
-          NavigationDestination(icon: Icon(Icons.star_outline), selectedIcon: Icon(Icons.star_rounded), label: 'Benefícios'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person_rounded), label: 'Perfil'),
-        ],
+      appBar: AppBar(title: const Text('Meu QR Code')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Identificação do cliente',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text('Mostre este código ao frentista.'),
+                  const SizedBox(height: 20),
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(data: app.qrPayload, size: 220),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    app.user!.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('ID: ${app.user!.id}'),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class StationsScreen extends StatefulWidget { const StationsScreen({super.key}); @override State<StationsScreen> createState() => _StationsScreenState(); }
+class _StationsScreenState extends State<StationsScreen> { String query = ''; final service = StationService(); @override Widget build(BuildContext context) { final stations = service.search(query); return ListView(padding: const EdgeInsets.all(18), children: [const Text('Postos', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), const SizedBox(height: 12), TextField(onChanged: (value) => setState(() => query = value), decoration: const InputDecoration(labelText: 'Buscar por posto ou cidade', prefixIcon: Icon(Icons.search))), const SizedBox(height: 12), for (final station in stations) Card(child: ListTile(leading: const Icon(Icons.local_gas_station), title: Text(station.name), subtitle: Text(station.location))) ]); } }
+
+class BenefitsScreen extends StatelessWidget {
+  const BenefitsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final compact = width < 390;
-
-    return ListView(
-      padding: EdgeInsets.fromLTRB(compact ? 14 : 18, 14, compact ? 14 : 18, 24),
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            WKLogo(width: compact ? 78 : 94),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GRUPO WK',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Confia no Senhor de todo o seu coração!',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: WKColors.muted, fontSize: 11.5, height: 1.2),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const SizedBox(
-              width: 58,
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: WKColors.card2,
-                    child: Icon(Icons.person_outline_rounded),
-                  ),
-                  SizedBox(height: 4),
-                  Text('Olá!', maxLines: 1, style: TextStyle(fontSize: 11)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Container(
-          padding: EdgeInsets.all(compact ? 16 : 20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: WKColors.red, width: 1.4),
-            gradient: const LinearGradient(colors: [Color(0xFF0D3378), Color(0xFF08152D)]),
-          ),
-          child: Row(
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: AppController.instance,
+        builder: (_, __) {
+          final app = AppController.instance;
+          return ListView(
+            padding: const EdgeInsets.all(18),
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Abasteça e\nganhe pontos',
-                      style: TextStyle(
-                        fontSize: compact ? 24 : 28,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Mais abastecimentos, mais vantagens para você!',
-                      style: TextStyle(color: WKColors.text, height: 1.35),
-                    ),
-                    const SizedBox(height: 14),
-                    OutlinedButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BenefitsPage())),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: WKColors.red),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-                      ),
-                      child: const FittedBox(child: Text('Ver benefícios  ›')),
-                    ),
-                  ],
-                ),
+              const Text(
+                'Cupons',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(width: 8),
-              CircleAvatar(
-                radius: compact ? 40 : 50,
-                backgroundColor: const Color(0xFF102E75),
-                child: Icon(
-                  Icons.local_gas_station_rounded,
-                  size: compact ? 46 : 58,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        WKCard(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 335;
-
-              Widget infoBlock() {
-                return const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_rounded, color: WKColors.blue, size: 18),
-                          SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Posto mais próximo',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: WKColors.blue, fontWeight: FontWeight.w800),
-                            ),
+              Text('Saldo: ${app.points} pontos'),
+              const SizedBox(height: 12),
+              for (final coupon in CouponService.coupons)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          coupon.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text('Posto WK Ceres', maxLines: 2, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-                      Text('Ceres - GO', style: TextStyle(color: WKColors.muted)),
-                    ],
-                  ),
-                );
-              }
-
-              if (narrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Color(0xFF102E69),
-                          child: Icon(Icons.local_gas_station_rounded, color: WKColors.blue, size: 33),
                         ),
-                        const SizedBox(width: 12),
-                        infoBlock(),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => toast(context, 'Abrindo rota do Posto WK Ceres.'),
-                      icon: const Icon(Icons.navigation_rounded, size: 18),
-                      label: const Text('Ver rota'),
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Color(0xFF102E69),
-                    child: Icon(Icons.local_gas_station_rounded, color: WKColors.blue, size: 34),
-                  ),
-                  const SizedBox(width: 12),
-                  infoBlock(),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => toast(context, 'Abrindo rota do Posto WK Ceres.'),
-                    icon: const Icon(Icons.navigation_rounded, size: 18),
-                    label: const Text('Ver rota'),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 18),
-        const Row(
-          children: [
-            Expanded(
-              child: Text('⛽ Combustíveis hoje', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-            ),
-            Text('08:30', style: TextStyle(color: WKColors.muted, fontSize: 12)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        const Row(
-          children: [
-            Expanded(child: FuelBox('GASOLINA', 'R\$ 5,69', WKColors.red)),
-            SizedBox(width: 8),
-            Expanded(child: FuelBox('ETANOL', 'R\$ 3,89', WKColors.green)),
-            SizedBox(width: 8),
-            Expanded(child: FuelBox('DIESEL S10', 'R\$ 5,89', WKColors.blue)),
-          ],
-        ),
-        const SizedBox(height: 18),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 3,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 10,
-          childAspectRatio: .86,
-          children: [
-            QuickAction(icon: Icons.stars_rounded, label: 'Pontos', onTap: () => showWKSheet(context, const PointsSheet())),
-            QuickAction(icon: Icons.local_offer_rounded, label: 'Promoções', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PromotionsPage()))),
-            QuickAction(icon: Icons.local_gas_station_rounded, label: 'Postos', onTap: () => toast(context, 'Use a aba Postos na navegação inferior.')),
-            QuickAction(icon: Icons.build_rounded, label: 'Serviços', onTap: () => toast(context, 'Serviços disponíveis por unidade em breve.')),
-            QuickAction(icon: Icons.confirmation_number_rounded, label: 'Cupons', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BenefitsPage()))),
-            QuickAction(icon: Icons.support_agent_rounded, label: 'Suporte', onTap: () => toast(context, 'Canal de suporte do MVP.')),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: WKColors.red, width: 1.2),
-            gradient: const LinearGradient(colors: [Color(0xFF103A8B), Color(0xFF0A1E4C)]),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Color(0xFF102E69),
-                    child: Icon(Icons.stars_rounded, color: Colors.white, size: 32),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Seus pontos', style: TextStyle(color: WKColors.muted)),
-                        Text('1.250', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-                        Text('Faltam 750 pontos para o próximo benefício!', maxLines: 2, style: TextStyle(fontSize: 11.5)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: null,
-                child: Text('Ver extrato'),
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: const LinearProgressIndicator(
-                  value: .625,
-                  minHeight: 8,
-                  backgroundColor: Color(0xFF183B7C),
-                  valueColor: AlwaysStoppedAnimation(WKColors.red),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class FuelBox extends StatelessWidget {
-  final String title;
-  final String price;
-  final Color color;
-  const FuelBox(this.title, this.price, this.color, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: WKColors.card2,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(.55)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(title, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(price, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          ),
-          const Text('/LITRO', style: TextStyle(color: WKColors.muted, fontSize: 10)),
-        ],
-      ),
-    );
-  }
-}
-
-class QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const QuickAction({super.key, required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF102E75),
-                border: Border.all(color: WKColors.red, width: 2),
-              ),
-              child: Icon(icon, color: Colors.white, size: 29),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 20,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class BenefitsPage extends StatefulWidget {
-  const BenefitsPage({super.key});
-
-  @override
-  State<BenefitsPage> createState() => _BenefitsPageState();
-}
-
-class _BenefitsPageState extends State<BenefitsPage> {
-  final Set<int> active = {};
-
-  @override
-  Widget build(BuildContext context) {
-    final data = [
-      ('10% OFF na lavagem', 'Desconto especial para deixar seu veículo impecável.', '30/09/2026', Icons.local_car_wash_rounded),
-      ('Café grátis', 'Ganhe 1 café em abastecimentos acima de R\$ 80.', '15/10/2026', Icons.coffee_rounded),
-      ('Troca de óleo com desconto', 'Condição exclusiva em serviços selecionados.', '25/10/2026', Icons.oil_barrel_rounded),
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        const TitleBlock('Benefícios / Cupons', 'Promoções exclusivas para clientes WK.'),
-        const SizedBox(height: 16),
-        for (int i = 0; i < data.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: WKCard(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: const Color(0xFF102E69),
-                    child: Icon(data[i].$4, color: WKColors.blue),
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(data[i].$1, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 4),
-                        Text(data[i].$2, style: const TextStyle(color: WKColors.muted, height: 1.3)),
-                        const SizedBox(height: 7),
-                        Text('Válido até ${data[i].$3}', style: const TextStyle(color: WKColors.muted, fontSize: 12)),
-                        const SizedBox(height: 10),
+                        Text(coupon.description),
+                        Text(
+                          '${coupon.pointsCost} pontos • ${coupon.rules}',
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: () => setState(() => active.contains(i) ? active.remove(i) : active.add(i)),
-                            style: FilledButton.styleFrom(backgroundColor: active.contains(i) ? WKColors.green : WKColors.blue),
-                            child: Text(active.contains(i) ? 'CUPOM ATIVADO' : 'ATIVAR CUPOM'),
+                            onPressed: app.isRedeemed(coupon.id)
+                                ? null
+                                : () => redeem(context, coupon),
+                            child: Text(
+                              app.isRedeemed(coupon.id)
+                                  ? 'Resgatado'
+                                  : 'Resgatar',
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class PromotionsPage extends StatelessWidget {
-  const PromotionsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: WKBackdrop(
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: const [
-              BackHeader(title: 'Promoções'),
-              SizedBox(height: 16),
-              PromoCard(city: 'Querência - MT', title: 'WK Acessórios', offer: 'Ofertas especiais em acessórios automotivos'),
-              SizedBox(height: 12),
-              PromoCard(city: 'Rio Verde - GO', title: 'WK Acessórios', offer: 'Seleção de produtos com preços promocionais'),
-              SizedBox(height: 12),
-              PromoCard(city: 'Ceres - GO', title: 'Posto WK Ceres', offer: 'Benefícios exclusivos para clientes do programa WK'),
+                ),
             ],
-          ),
-        ),
-      ),
-    );
+          );
+        },
+      );
+
+  Future<void> redeem(BuildContext context, CouponModel coupon) async {
+    try {
+      await AppController.instance.redeem(coupon);
+      if (context.mounted) {
+        showMessage(context, 'Cupom resgatado com sucesso.');
+      }
+    } on CouponException catch (error) {
+      if (context.mounted) showMessage(context, error.message);
+    }
   }
 }
 
-class PromoCard extends StatelessWidget {
-  final String city;
-  final String title;
-  final String offer;
-  const PromoCard({super.key, required this.city, required this.title, required this.offer});
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return WKCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.local_offer_rounded, color: WKColors.blue, size: 30),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-          Text(city, style: const TextStyle(color: WKColors.muted)),
-          const SizedBox(height: 12),
-          Text(offer),
-          const SizedBox(height: 14),
-          PrimaryButton(label: 'VER OFERTA', onTap: () => toast(context, 'Oferta demonstrativa do MVP.')),
-        ],
-      ),
-    );
-  }
-}
-
-class StationsPage extends StatelessWidget {
-  const StationsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final stations = [
-      ('Posto WK Ceres', 'Ceres - GO', '0 km', 'Combustível • Conveniência'),
-      ('Posto WK Jaraguá', 'Jaraguá - GO', '61 km', 'Combustível • Conveniência'),
-      ('Posto WK Anápolis', 'Anápolis - GO', '141 km', 'Combustível • Serviços'),
-      ('Posto WK Rio Verde', 'Rio Verde - GO', '407 km', 'Combustível • WK Acessórios'),
-      ('Posto WK Jataí', 'Jataí - GO', '496 km', 'Combustível • Conveniência'),
-      ('Posto WK Querência', 'Querência - MT', '577 km', 'Combustível • WK Acessórios'),
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        const TitleBlock('Postos', 'Encontre uma unidade WK e veja os serviços disponíveis.'),
-        const SizedBox(height: 15),
-        const TextField(decoration: InputDecoration(hintText: 'Buscar posto ou cidade', prefixIcon: Icon(Icons.search_rounded))),
-        const SizedBox(height: 15),
-        for (final p in stations)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 11),
-            child: WKCard(
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Color(0xFF102E69),
-                    child: Icon(Icons.local_gas_station_rounded, color: WKColors.blue),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(p.$1, maxLines: 2, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900)),
-                        Text(p.$2, style: const TextStyle(color: WKColors.muted)),
-                        const SizedBox(height: 4),
-                        Text(p.$4, maxLines: 2, style: const TextStyle(color: WKColors.muted, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: AppController.instance,
+        builder: (_, __) {
+          final app = AppController.instance;
+          final user = app.user!;
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Text(
+                'Perfil',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.$3, style: const TextStyle(color: WKColors.blue, fontWeight: FontWeight.w900)),
-                      IconButton(
-                        onPressed: () => toast(context, 'Abrindo rota para ${p.$1}.'),
-                        icon: const Icon(Icons.navigation_rounded),
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(user.email),
+                      Text(user.phone),
+                      Text('CPF: ${maskCpf(user.cpf)}'),
+                      Text('ID: ${user.id}'),
+                      Text(
+                        '${app.points} pontos',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                ),
+                icon: const Icon(Icons.receipt_long),
+                label: const Text('Histórico completo'),
+              ),
+              if (kDebugMode)
+                FilledButton.tonalIcon(
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => const DemoFuelingDialog(),
+                  ),
+                  icon: const Icon(Icons.developer_mode),
+                  label: const Text('Ferramenta de desenvolvimento'),
+                ),
+              OutlinedButton.icon(
+                onPressed: app.logout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Sair'),
+              ),
+            ],
+          );
+        },
+      );
+}
+
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Histórico')),
+        body: AnimatedBuilder(
+          animation: AppController.instance,
+          builder: (_, __) {
+            final items = AppController.instance.transactions;
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: items.isEmpty
+                  ? [const Text('Nenhuma movimentação registrada.')]
+                  : [
+                      for (final item in items) TransactionTile(item),
+                    ],
+            );
+          },
+        ),
+      );
+}
+
+class TransactionTile extends StatelessWidget {
+  const TransactionTile(this.item, {super.key});
+
+  final TransactionModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final redemption = item.type == TransactionType.couponRedemption;
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          redemption ? Icons.local_offer : Icons.local_gas_station,
+        ),
+        title: Text(redemption ? 'Cupom utilizado' : item.stationName),
+        subtitle: Text(
+          '${formatDate(item.date)}'
+          "${item.fuel.isEmpty ? '' : ' • ${item.fuel}'}",
+        ),
+        trailing: Text(
+          '${item.points > 0 ? '+' : ''}${item.points} pts',
+          style: TextStyle(
+            color: item.points >= 0 ? AppColors.success : AppColors.danger,
+            fontWeight: FontWeight.bold,
           ),
-      ],
+        ),
+      ),
     );
   }
 }
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+class DemoFuelingDialog extends StatefulWidget {
+  const DemoFuelingDialog({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      children: [
-        const TitleBlock('Perfil / Histórico', 'Sua conta e movimentações no programa WK.'),
-        const SizedBox(height: 16),
-        WKCard(
-          child: Row(
-            children: const [
-              CircleAvatar(
-                radius: 31,
-                backgroundColor: Color(0xFF102E69),
-                child: Icon(Icons.person_rounded, color: WKColors.blue, size: 34),
-              ),
-              SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Lucas Araújo', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                    Text('Cliente WK', style: TextStyle(color: WKColors.blue, fontWeight: FontWeight.w700)),
-                    Text('Ceres - GO', style: TextStyle(color: WKColors.muted)),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('1.250', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                  Text('pontos', style: TextStyle(color: WKColors.muted)),
+  State<DemoFuelingDialog> createState() => _DemoFuelingDialogState();
+}
+
+class _DemoFuelingDialogState extends State<DemoFuelingDialog> {
+  final amount = TextEditingController();
+  final liters = TextEditingController();
+  var station = StationService.stations.first;
+  String fuel = 'Gasolina';
+
+  @override
+  void dispose() {
+    amount.dispose();
+    liters.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Somente desenvolvimento'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField(
+                initialValue: station,
+                items: [
+                  for (final item in StationService.stations)
+                    DropdownMenuItem(value: item, child: Text(item.name)),
                 ],
+                onChanged: (value) => setState(() => station = value!),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField(
+                initialValue: fuel,
+                items: [
+                  for (final item in [
+                    'Gasolina',
+                    'Etanol',
+                    'Diesel S10',
+                    'Diesel S500',
+                  ])
+                    DropdownMenuItem(value: item, child: Text(item)),
+                ],
+                onChanged: (value) => setState(() => fuel = value!),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Valor em R\$'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: liters,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Litros (opcional)',
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        const HistoryItem('Posto WK Ceres', '08/08/2026', 'R\$ 198,50', '+198 pontos'),
-        const HistoryItem('Posto WK Jaraguá', '27/07/2026', 'R\$ 142,20', '+142 pontos'),
-        const HistoryItem('Posto WK Ceres', '10/07/2026', 'R\$ 211,90', '+211 pontos'),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: () => Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-            (_) => false,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
           ),
-          icon: const Icon(Icons.logout_rounded),
-          label: const Text('Sair da conta'),
-        ),
-      ],
-    );
-  }
-}
-
-class HistoryItem extends StatelessWidget {
-  final String place;
-  final String date;
-  final String value;
-  final String points;
-  const HistoryItem(this.place, this.date, this.value, this.points, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: WKCard(
-        child: Row(
-          children: [
-            const Icon(Icons.local_gas_station_rounded, color: WKColors.blue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(place, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text(date, style: const TextStyle(color: WKColors.muted, fontSize: 12)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
-                Text(points, style: const TextStyle(color: WKColors.green, fontWeight: FontWeight.w800, fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class PointsSheet extends StatelessWidget {
-  const PointsSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const WKSheet(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Extrato de pontos', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-          SizedBox(height: 18),
-          HistoryItem('Posto WK Ceres', '08/08/2026', 'Abastecimento', '+198 pontos'),
-          HistoryItem('Cupom utilizado', '30/07/2026', 'Lavagem', '-500 pontos'),
-          HistoryItem('Posto WK Jaraguá', '27/07/2026', 'Abastecimento', '+142 pontos'),
-          SizedBox(height: 10),
+          FilledButton(onPressed: submit, child: const Text('Simular')),
         ],
-      ),
-    );
+      );
+
+  Future<void> submit() async {
+    final value = double.tryParse(amount.text.replaceAll(',', '.'));
+    final volume = double.tryParse(liters.text.replaceAll(',', '.'));
+    if (value == null || value <= 0) {
+      showMessage(context, 'Informe um valor válido.');
+      return;
+    }
+    try {
+      final transaction = await AppController.instance.recordDemoFueling(
+        station: station,
+        amount: value,
+        fuel: fuel,
+        liters: volume,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        showMessage(
+          context,
+          'Abastecimento simulado: +${transaction.points} pontos.',
+        );
+      }
+    } on ArgumentError catch (error) {
+      if (mounted) {
+        showMessage(
+          context,
+          error.message?.toString() ?? 'Valor inválido.',
+        );
+      }
+    }
   }
-}
-
-class WKSheet extends StatelessWidget {
-  final Widget child;
-  const WKSheet({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: const BoxDecoration(
-        color: WKColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      child: SafeArea(top: false, child: child),
-    );
-  }
-}
-
-class WKCard extends StatelessWidget {
-  final Widget child;
-  const WKCard({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: WKColors.card.withOpacity(.95),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: WKColors.border.withOpacity(.9)),
-      ),
-      child: child,
-    );
-  }
-}
-
-class PrimaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-  const PrimaryButton({super.key, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: FilledButton(
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: WKColors.blue,
-          disabledBackgroundColor: WKColors.border,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        ),
-        child: FittedBox(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w900))),
-      ),
-    );
-  }
-}
-
-class TitleBlock extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  const TitleBlock(this.title, this.subtitle, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 29, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 5),
-        Text(subtitle, style: const TextStyle(color: WKColors.muted, height: 1.35)),
-      ],
-    );
-  }
-}
-
-class BackHeader extends StatelessWidget {
-  final String title;
-  const BackHeader({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-void toast(BuildContext c, String s) {
-  ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(s), backgroundColor: WKColors.card2));
-}
-
-void showWKSheet(BuildContext c, Widget w) {
-  showModalBottomSheet(
-    context: c,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => w,
-  );
 }
