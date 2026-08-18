@@ -98,15 +98,125 @@ class HomeScreen extends StatelessWidget { const HomeScreen({super.key});
   ]); });
 }
 
-class QrScreen extends StatelessWidget { const QrScreen({super.key}); @override Widget build(BuildContext context) { final app = AppController.instance; return Scaffold(appBar: AppBar(title: const Text('Meu QR Code')), body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: Card(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-  const Text('Identificação do cliente', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), const Text('Mostre este código ao frentista.'), const SizedBox(height: 20), Container(color: Colors.white, padding: const EdgeInsets.all(12), child: QrImageView(data: app.qrPayload, size: 220)), const SizedBox(height: 16), Text(app.user!.name, style: const TextStyle(fontWeight: FontWeight.bold)), Text('ID: ${app.user!.id}'),
-]))))); } }
+class QrScreen extends StatelessWidget {
+  const QrScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppController.instance;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Meu QR Code')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Identificação do cliente',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text('Mostre este código ao frentista.'),
+                  const SizedBox(height: 20),
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(data: app.qrPayload, size: 220),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    app.user!.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('ID: ${app.user!.id}'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class StationsScreen extends StatefulWidget { const StationsScreen({super.key}); @override State<StationsScreen> createState() => _StationsScreenState(); }
 class _StationsScreenState extends State<StationsScreen> { String query = ''; final service = StationService(); @override Widget build(BuildContext context) { final stations = service.search(query); return ListView(padding: const EdgeInsets.all(18), children: [const Text('Postos', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), const SizedBox(height: 12), TextField(onChanged: (value) => setState(() => query = value), decoration: const InputDecoration(labelText: 'Buscar por posto ou cidade', prefixIcon: Icon(Icons.search))), const SizedBox(height: 12), for (final station in stations) Card(child: ListTile(leading: const Icon(Icons.local_gas_station), title: Text(station.name), subtitle: Text(station.location))) ]); } }
 
-class BenefitsScreen extends StatelessWidget { const BenefitsScreen({super.key}); @override Widget build(BuildContext context) => AnimatedBuilder(animation: AppController.instance, builder: (_, __) { final app = AppController.instance; return ListView(padding: const EdgeInsets.all(18), children: [const Text('Cupons', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), Text('Saldo: ${app.points} pontos'), const SizedBox(height: 12), for (final coupon in CouponService.coupons) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(coupon.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), Text(coupon.description), Text('${coupon.pointsCost} pontos • ${coupon.rules}', style: const TextStyle(color: AppColors.muted)), const SizedBox(height: 8), SizedBox(width: double.infinity, child: FilledButton(onPressed: app.isRedeemed(coupon.id) ? null : () => redeem(context, coupon), child: Text(app.isRedeemed(coupon.id) ? 'Resgatado' : 'Resgatar')))]))) ]); });
-  Future<void> redeem(BuildContext context, CouponModel coupon) async { try { await AppController.instance.redeem(coupon); if (context.mounted) showMessage(context, 'Cupom resgatado com sucesso.'); } on CouponException catch (error) { if (context.mounted) showMessage(context, error.message); } }
+class BenefitsScreen extends StatelessWidget {
+  const BenefitsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: AppController.instance,
+        builder: (_, __) {
+          final app = AppController.instance;
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Text(
+                'Cupons',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              Text('Saldo: ${app.points} pontos'),
+              const SizedBox(height: 12),
+              for (final coupon in CouponService.coupons)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          coupon.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(coupon.description),
+                        Text(
+                          '${coupon.pointsCost} pontos • ${coupon.rules}',
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: app.isRedeemed(coupon.id)
+                                ? null
+                                : () => redeem(context, coupon),
+                            child: Text(
+                              app.isRedeemed(coupon.id)
+                                  ? 'Resgatado'
+                                  : 'Resgatar',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      );
+
+  Future<void> redeem(BuildContext context, CouponModel coupon) async {
+    try {
+      await AppController.instance.redeem(coupon);
+      if (context.mounted) {
+        showMessage(context, 'Cupom resgatado com sucesso.');
+      }
+    } on CouponException catch (error) {
+      if (context.mounted) showMessage(context, error.message);
+    }
+  }
 }
 
 class ProfileScreen extends StatelessWidget { const ProfileScreen({super.key}); @override Widget build(BuildContext context) => AnimatedBuilder(animation: AppController.instance, builder: (_, __) { final app = AppController.instance, user = app.user!; return ListView(padding: const EdgeInsets.all(18), children: [
