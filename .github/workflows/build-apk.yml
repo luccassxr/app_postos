@@ -35,56 +35,42 @@ jobs:
           from pathlib import Path
           import base64
           import io
-          import re
           from PIL import Image
 
-          src = Path('assets/wk_logo.b64')
+          src = Path('assets/wk_logo_fixed.b64')
           if not src.exists():
-              raise SystemExit('assets/wk_logo.b64 not found')
+              raise SystemExit('assets/wk_logo_fixed.b64 not found')
 
-          raw = src.read_text(encoding='utf-8', errors='ignore')
-
-          # Keep only the base64 alphabet, discard whitespace/accidental separators,
-          # remove stale padding and add the correct padding again.
-          clean = re.sub(r'[^A-Za-z0-9+/]', '', raw)
-          if not clean:
-              raise SystemExit('WK logo base64 payload is empty')
-          clean += '=' * ((4 - len(clean) % 4) % 4)
+          raw = src.read_text(encoding='ascii').strip()
+          try:
+              data = base64.b64decode(raw, validate=True)
+          except Exception as exc:
+              raise SystemExit(f'Validated WK logo payload could not be decoded: {exc}')
 
           try:
-              data = base64.b64decode(clean, validate=False)
+              logo = Image.open(io.BytesIO(data)).convert('RGBA')
+              logo.load()
           except Exception as exc:
-              raise SystemExit(f'Could not decode WK logo base64: {exc}')
+              raise SystemExit(f'WK logo payload is not a valid image: {exc}')
 
-          try:
-              logo = Image.open(io.BytesIO(data))
-              logo.seek(0)
-              logo = logo.convert('RGBA')
-          except Exception as exc:
-              raise SystemExit(f'Decoded WK logo is not a valid image: {exc}')
-
-          # Crop transparent margins, preserving the official artwork.
           alpha = logo.getchannel('A')
           bbox = alpha.getbbox()
           if bbox:
               logo = logo.crop(bbox)
 
-          # Flutter in-app asset.
-          logo.save('assets/wk_logo.webp', 'WEBP', quality=96, method=6)
+          logo.save('assets/wk_logo.webp', 'WEBP', quality=94, method=6)
 
-          # Android launcher icon on WK navy background.
           canvas = Image.new('RGBA', (1024, 1024), '#020712')
           mark = logo.copy()
-          mark.thumbnail((860, 860), Image.Resampling.LANCZOS)
+          mark.thumbnail((820, 820), Image.Resampling.LANCZOS)
           x = (1024 - mark.width) // 2
           y = (1024 - mark.height) // 2
           canvas.alpha_composite(mark, (x, y))
           canvas.convert('RGB').save('assets/wk_app_icon.png', 'PNG', optimize=True)
 
-          # Validate both outputs now, before Flutter starts.
           Image.open('assets/wk_logo.webp').verify()
           Image.open('assets/wk_app_icon.png').verify()
-          print('WK assets prepared successfully')
+          print('WK assets validated and generated successfully')
           PY
           file assets/wk_logo.webp assets/wk_app_icon.png
           ls -lh assets/wk_logo.webp assets/wk_app_icon.png
