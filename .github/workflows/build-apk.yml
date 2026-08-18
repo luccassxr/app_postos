@@ -28,6 +28,38 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Validate WK logo asset
+        run: |
+          test -f assets/wk_logo.webp
+          ls -lh assets/wk_logo.webp
+
+      - name: Prepare WK assets
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          logo_path = Path('assets/wk_logo.webp')
+          logo = Image.open(logo_path).convert('RGBA')
+
+          # Re-encode the source asset to guarantee a valid, Flutter-readable WebP.
+          logo.save(logo_path, 'WEBP', quality=96, method=6)
+
+          # Build a square launcher icon using the same official WK artwork.
+          canvas = Image.new('RGBA', (1024, 1024), '#020712')
+          mark = logo.copy()
+          mark.thumbnail((860, 860), Image.Resampling.LANCZOS)
+          x = (1024 - mark.width) // 2
+          y = (1024 - mark.height) // 2
+          canvas.alpha_composite(mark, (x, y))
+          canvas.convert('RGB').save('assets/wk_app_icon.png', 'PNG', optimize=True)
+
+          print('logo:', logo.size, 'icon:', canvas.size)
+          PY
+          file assets/wk_logo.webp assets/wk_app_icon.png
+          ls -lh assets/wk_logo.webp assets/wk_app_icon.png
+
       - name: Generate Android project
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
 
@@ -37,17 +69,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Prepare official WK launcher icon
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-          convert assets/wk_logo.webp -background '#020712' -gravity center -resize 760x760 -extent 1024x1024 assets/wk_app_icon.png
-
       - name: Generate Android launcher icons
         run: dart run flutter_launcher_icons
 
+      - name: Analyze Flutter project
+        run: flutter analyze --no-fatal-infos
+
       - name: Build debug APK
         run: flutter build apk --debug
+
+      - name: Verify APK
+        run: |
+          test -f build/app/outputs/flutter-apk/app-debug.apk
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
