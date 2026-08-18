@@ -1,23 +1,21 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 void main() => runApp(const WKClienteApp());
 
 class WKColors {
   static const bg = Color(0xFF020712);
   static const bg2 = Color(0xFF07162D);
-  static const card = Color(0xFF0A1729);
-  static const card2 = Color(0xFF0E1D34);
+  static const card = Color(0xFF091629);
+  static const card2 = Color(0xFF0D1D34);
   static const blue = Color(0xFF1768FF);
+  static const blueDark = Color(0xFF0E3E99);
   static const red = Color(0xFFFF1830);
   static const green = Color(0xFF25D87A);
   static const text = Color(0xFFF7F9FF);
   static const muted = Color(0xFFA7B1C3);
-  static const border = Color(0xFF2B3C57);
+  static const border = Color(0xFF2A3D5C);
 }
 
 class WKClienteApp extends StatelessWidget {
@@ -68,10 +66,10 @@ class WKBackdrop extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: RadialGradient(
-          center: Alignment(0, -0.45),
-          radius: 1.2,
-          colors: [Color(0xFF0A2D63), WKColors.bg2, WKColors.bg, Color(0xFF000308)],
-          stops: [0, .35, .72, 1],
+          center: Alignment(0, -0.52),
+          radius: 1.25,
+          colors: [Color(0xFF0B2D62), WKColors.bg2, WKColors.bg, Color(0xFF000308)],
+          stops: [0, .34, .73, 1],
         ),
       ),
       child: child,
@@ -79,85 +77,45 @@ class WKBackdrop extends StatelessWidget {
   }
 }
 
-class WKLogo extends StatefulWidget {
+class WKLogo extends StatelessWidget {
   final double width;
   final bool slogan;
   const WKLogo({super.key, this.width = 170, this.slogan = false});
 
   @override
-  State<WKLogo> createState() => _WKLogoState();
-}
-
-class _WKLogoState extends State<WKLogo> {
-  static Future<Uint8List>? _cachedLogo;
-
-  Future<Uint8List> _loadLogo() {
-    _cachedLogo ??= rootBundle.loadString('assets/wk_logo.b64').then((value) {
-      final clean = value.replaceAll(RegExp(r'\s+'), '');
-      return base64Decode(clean);
-    });
-    return _cachedLogo!;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: widget.width),
+    return SizedBox(
+      width: width,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FutureBuilder<Uint8List>(
-            future: _loadLogo(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return Image.memory(
-                  snapshot.data!,
-                  width: widget.width,
-                  fit: BoxFit.contain,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => _logoFallback(),
-                );
-              }
-              if (snapshot.hasError) return _logoFallback();
-              return SizedBox(
-                width: widget.width,
-                height: widget.width * .52,
-                child: const Center(
-                  child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-              );
-            },
+          Image.asset(
+            'assets/wk_logo.webp',
+            width: width,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => Container(
+              width: width,
+              height: width * .48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border.all(color: WKColors.red, width: 2),
+                borderRadius: BorderRadius.circular(18),
+                color: WKColors.card2,
+              ),
+              child: const Text('GRUPO WK', style: TextStyle(fontWeight: FontWeight.w900)),
+            ),
           ),
-          if (widget.slogan) ...[
-            const SizedBox(height: 6),
+          if (slogan) ...[
+            const SizedBox(height: 7),
             const Text(
               'Confia no Senhor de todo\no seu coração!',
               textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontStyle: FontStyle.italic,
-                color: WKColors.text,
-                height: 1.25,
-              ),
+              style: TextStyle(color: WKColors.text, fontStyle: FontStyle.italic, height: 1.25),
             ),
           ],
         ],
       ),
-    );
-  }
-
-  Widget _logoFallback() {
-    return Container(
-      width: widget.width,
-      height: widget.width * .48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: WKColors.red, width: 2),
-        gradient: const LinearGradient(colors: [Color(0xFF183A8D), Color(0xFF07162D)]),
-      ),
-      alignment: Alignment.center,
-      child: const Text('GRUPO WK', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
     );
   }
 }
@@ -173,7 +131,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(milliseconds: 1600), () {
+    Timer(const Duration(milliseconds: 1700), () {
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
     });
@@ -187,21 +145,22 @@ class _SplashPageState extends State<SplashPage> {
           child: Column(
             children: [
               const Spacer(),
-              const WKLogo(width: 220, slogan: true),
+              const WKLogo(width: 230, slogan: true),
               const Spacer(),
-              const Text('Carregando', style: TextStyle(color: WKColors.muted)),
+              const Text('Carregando', style: TextStyle(color: WKColors.muted, fontSize: 15)),
               const SizedBox(height: 12),
               SizedBox(
-                width: 180,
+                width: 190,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: const LinearProgressIndicator(
                     minHeight: 4,
                     backgroundColor: WKColors.border,
+                    valueColor: AlwaysStoppedAnimation(WKColors.blue),
                   ),
                 ),
               ),
-              const SizedBox(height: 44),
+              const SizedBox(height: 50),
             ],
           ),
         ),
@@ -225,7 +184,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> enter() async {
     setState(() => loading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainShell()));
   }
@@ -236,14 +195,14 @@ class _LoginPageState extends State<LoginPage> {
       body: WKBackdrop(
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 24, 22, 32),
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
             children: [
               const Center(child: WKLogo(width: 180, slogan: true)),
               const SizedBox(height: 34),
               const Text('Acesse sua conta', style: TextStyle(fontSize: 31, fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
               const Text(
-                'Entre para acompanhar seus pontos, benefícios e abastecimentos.',
+                'Entre para acompanhar pontos, benefícios e abastecimentos.',
                 style: TextStyle(color: WKColors.muted, fontSize: 16, height: 1.4),
               ),
               const SizedBox(height: 24),
@@ -270,7 +229,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -278,11 +236,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Text('Esqueci minha senha'),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    PrimaryButton(
-                      label: loading ? 'ENTRANDO...' : 'ENTRAR',
-                      onTap: loading ? null : enter,
-                    ),
+                    PrimaryButton(label: loading ? 'ENTRANDO...' : 'ENTRAR', onTap: loading ? null : enter),
                   ],
                 ),
               ),
@@ -313,7 +267,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final fields = [
+    const fields = [
       ('Nome completo', Icons.person_outline),
       ('CPF', Icons.badge_outlined),
       ('Telefone', Icons.phone_outlined),
@@ -326,13 +280,13 @@ class _RegisterPageState extends State<RegisterPage> {
       body: WKBackdrop(
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 32),
             children: [
               Row(
                 children: [
                   IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
                   const Spacer(),
-                  const WKLogo(width: 115),
+                  const WKLogo(width: 120),
                   const Spacer(),
                   const SizedBox(width: 48),
                 ],
@@ -420,27 +374,21 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final compact = width < 390;
+    final compact = MediaQuery.sizeOf(context).width < 390;
+    final pad = compact ? 14.0 : 18.0;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(compact ? 14 : 18, 14, compact ? 14 : 18, 24),
+      padding: EdgeInsets.fromLTRB(pad, 14, pad, 24),
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            WKLogo(width: compact ? 78 : 94),
+            WKLogo(width: compact ? 88 : 104),
             const SizedBox(width: 10),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'GRUPO WK',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
+                  Text('GRUPO WK', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
                   SizedBox(height: 2),
                   Text(
                     'Confia no Senhor de todo o seu coração!',
@@ -452,19 +400,16 @@ class HomePage extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const SizedBox(
-              width: 58,
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: WKColors.card2,
-                    child: Icon(Icons.person_outline_rounded),
-                  ),
-                  SizedBox(height: 4),
-                  Text('Olá!', maxLines: 1, style: TextStyle(fontSize: 11)),
-                ],
-              ),
+            const Column(
+              children: [
+                CircleAvatar(
+                  radius: 21,
+                  backgroundColor: WKColors.card2,
+                  child: Icon(Icons.person_outline_rounded),
+                ),
+                SizedBox(height: 4),
+                Text('Olá, Cliente!', style: TextStyle(fontSize: 10.5)),
+              ],
             ),
           ],
         ),
@@ -473,8 +418,8 @@ class HomePage extends StatelessWidget {
           padding: EdgeInsets.all(compact ? 16 : 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: WKColors.red, width: 1.4),
-            gradient: const LinearGradient(colors: [Color(0xFF0D3378), Color(0xFF08152D)]),
+            border: Border.all(color: WKColors.red, width: 1.5),
+            gradient: const LinearGradient(colors: [Color(0xFF0C347D), Color(0xFF07142B)]),
           ),
           child: Row(
             children: [
@@ -484,17 +429,10 @@ class HomePage extends StatelessWidget {
                   children: [
                     Text(
                       'Abasteça e\nganhe pontos',
-                      style: TextStyle(
-                        fontSize: compact ? 24 : 28,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                      ),
+                      style: TextStyle(fontSize: compact ? 24 : 28, fontWeight: FontWeight.w900, height: 1.04),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Mais abastecimentos, mais vantagens para você!',
-                      style: TextStyle(color: WKColors.text, height: 1.35),
-                    ),
+                    const Text('Mais abastecimentos, mais vantagens para você!', style: TextStyle(height: 1.35)),
                     const SizedBox(height: 14),
                     OutlinedButton(
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BenefitsPage())),
@@ -502,20 +440,21 @@ class HomePage extends StatelessWidget {
                         side: const BorderSide(color: WKColors.red),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
                       ),
-                      child: const FittedBox(child: Text('Ver benefícios  ›')),
+                      child: const Text('Ver benefícios  ›'),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              CircleAvatar(
-                radius: compact ? 40 : 50,
-                backgroundColor: const Color(0xFF102E75),
-                child: Icon(
-                  Icons.local_gas_station_rounded,
-                  size: compact ? 46 : 58,
-                  color: Colors.white,
+              const SizedBox(width: 10),
+              Container(
+                width: compact ? 82 : 104,
+                height: compact ? 82 : 104,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF102F77),
+                  border: Border.all(color: WKColors.red, width: 2),
                 ),
+                child: Icon(Icons.local_gas_station_rounded, color: Colors.white, size: compact ? 48 : 60),
               ),
             ],
           ),
@@ -523,75 +462,39 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 16),
         WKCard(
           child: LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 335;
-
-              Widget infoBlock() {
-                return const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_rounded, color: WKColors.blue, size: 18),
-                          SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Posto mais próximo',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: WKColors.blue, fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text('Posto WK Ceres', maxLines: 2, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-                      Text('Ceres - GO', style: TextStyle(color: WKColors.muted)),
-                    ],
-                  ),
-                );
-              }
-
-              if (narrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Color(0xFF102E69),
-                          child: Icon(Icons.local_gas_station_rounded, color: WKColors.blue, size: 33),
-                        ),
-                        const SizedBox(width: 12),
-                        infoBlock(),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => toast(context, 'Abrindo rota do Posto WK Ceres.'),
-                      icon: const Icon(Icons.navigation_rounded, size: 18),
-                      label: const Text('Ver rota'),
-                    ),
-                  ],
-                );
-              }
-
+            builder: (context, c) {
               return Row(
                 children: [
                   const CircleAvatar(
-                    radius: 32,
+                    radius: 31,
                     backgroundColor: Color(0xFF102E69),
                     child: Icon(Icons.local_gas_station_rounded, color: WKColors.blue, size: 34),
                   ),
                   const SizedBox(width: 12),
-                  infoBlock(),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => toast(context, 'Abrindo rota do Posto WK Ceres.'),
-                    icon: const Icon(Icons.navigation_rounded, size: 18),
-                    label: const Text('Ver rota'),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_rounded, color: WKColors.blue, size: 18),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text('Posto mais próximo', style: TextStyle(color: WKColors.blue, fontWeight: FontWeight.w800)),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Text('Posto WK Ceres', style: TextStyle(fontSize: 18.5, fontWeight: FontWeight.w900)),
+                        Text('Ceres - GO', style: TextStyle(color: WKColors.muted)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton.filled(
+                    onPressed: () => toast(context, 'Rota do Posto WK Ceres será aberta aqui.'),
+                    icon: const Icon(Icons.navigation_rounded),
+                    tooltip: 'Ver rota',
                   ),
                 ],
               );
@@ -601,10 +504,8 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 18),
         const Row(
           children: [
-            Expanded(
-              child: Text('⛽ Combustíveis hoje', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-            ),
-            Text('08:30', style: TextStyle(color: WKColors.muted, fontSize: 12)),
+            Expanded(child: Text('⛽  Combustíveis hoje', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+            Text('Atualizado 08:30', style: TextStyle(color: WKColors.muted, fontSize: 11)),
           ],
         ),
         const SizedBox(height: 10),
@@ -617,21 +518,21 @@ class HomePage extends StatelessWidget {
             Expanded(child: FuelBox('DIESEL S10', 'R\$ 5,89', WKColors.blue)),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 3,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 10,
+          mainAxisSpacing: 18,
+          crossAxisSpacing: 8,
           childAspectRatio: .86,
           children: [
             QuickAction(icon: Icons.stars_rounded, label: 'Pontos', onTap: () => showWKSheet(context, const PointsSheet())),
             QuickAction(icon: Icons.local_offer_rounded, label: 'Promoções', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PromotionsPage()))),
-            QuickAction(icon: Icons.local_gas_station_rounded, label: 'Postos', onTap: () => toast(context, 'Use a aba Postos na navegação inferior.')),
-            QuickAction(icon: Icons.build_rounded, label: 'Serviços', onTap: () => toast(context, 'Serviços disponíveis por unidade em breve.')),
+            QuickAction(icon: Icons.local_gas_station_rounded, label: 'Postos', onTap: () => toast(context, 'Abra a aba Postos na barra inferior.')),
+            QuickAction(icon: Icons.build_rounded, label: 'Serviços', onTap: () => toast(context, 'Serviços por unidade serão conectados ao banco de dados.')),
             QuickAction(icon: Icons.confirmation_number_rounded, label: 'Cupons', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BenefitsPage()))),
-            QuickAction(icon: Icons.support_agent_rounded, label: 'Suporte', onTap: () => toast(context, 'Canal de suporte do MVP.')),
+            QuickAction(icon: Icons.support_agent_rounded, label: 'Suporte', onTap: () => toast(context, 'Canal de suporte em desenvolvimento.')),
           ],
         ),
         const SizedBox(height: 18),
@@ -639,38 +540,37 @@ class HomePage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: WKColors.red, width: 1.2),
-            gradient: const LinearGradient(colors: [Color(0xFF103A8B), Color(0xFF0A1E4C)]),
+            border: Border.all(color: WKColors.red, width: 1.35),
+            gradient: const LinearGradient(colors: [Color(0xFF103A8B), Color(0xFF091D49)]),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Row(
+              Row(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
+                  const CircleAvatar(
+                    radius: 29,
                     backgroundColor: Color(0xFF102E69),
-                    child: Icon(Icons.stars_rounded, color: Colors.white, size: 32),
+                    child: Icon(Icons.stars_rounded, color: Colors.white, size: 33),
                   ),
-                  SizedBox(width: 12),
-                  Expanded(
+                  const SizedBox(width: 12),
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Seus pontos', style: TextStyle(color: WKColors.muted)),
                         Text('1.250', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-                        Text('Faltam 750 pontos para o próximo benefício!', maxLines: 2, style: TextStyle(fontSize: 11.5)),
+                        Text('Faltam 750 pontos para o próximo benefício!', style: TextStyle(fontSize: 11.5)),
                       ],
                     ),
                   ),
+                  OutlinedButton(
+                    onPressed: () => showWKSheet(context, const PointsSheet()),
+                    child: const Text('Extrato'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: null,
-                child: Text('Ver extrato'),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: const LinearProgressIndicator(
@@ -706,17 +606,9 @@ class FuelBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(title, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900)),
-          ),
+          FittedBox(child: Text(title, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900))),
           const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(price, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          ),
+          FittedBox(child: Text(price, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
           const Text('/LITRO', style: TextStyle(color: WKColors.muted, fontSize: 10)),
         ],
       ),
@@ -735,31 +627,23 @@ class QuickAction extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF102E75),
-                border: Border.all(color: WKColors.red, width: 2),
-              ),
-              child: Icon(icon, color: Colors.white, size: 29),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF102E75),
+              border: Border.all(color: WKColors.red, width: 2),
+              boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 6))],
             ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 20,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
-              ),
-            ),
-          ],
-        ),
+            child: Icon(icon, color: Colors.white, size: 30),
+          ),
+          const SizedBox(height: 7),
+          FittedBox(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
+        ],
       ),
     );
   }
@@ -844,11 +728,11 @@ class PromotionsPage extends StatelessWidget {
             children: const [
               BackHeader(title: 'Promoções'),
               SizedBox(height: 16),
-              PromoCard(city: 'Querência - MT', title: 'WK Acessórios', offer: 'Ofertas especiais em acessórios automotivos'),
+              PromoCard(city: 'Querência - MT', title: 'WK Acessórios', offer: 'Ofertas especiais em acessórios automotivos.'),
               SizedBox(height: 12),
-              PromoCard(city: 'Rio Verde - GO', title: 'WK Acessórios', offer: 'Seleção de produtos com preços promocionais'),
+              PromoCard(city: 'Rio Verde - GO', title: 'WK Acessórios', offer: 'Seleção de produtos com preços promocionais.'),
               SizedBox(height: 12),
-              PromoCard(city: 'Ceres - GO', title: 'Posto WK Ceres', offer: 'Benefícios exclusivos para clientes do programa WK'),
+              PromoCard(city: 'Ceres - GO', title: 'Posto WK Ceres', offer: 'Benefícios exclusivos para clientes do programa WK.'),
             ],
           ),
         ),
@@ -920,10 +804,10 @@ class StationsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(p.$1, maxLines: 2, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900)),
+                        Text(p.$1, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900)),
                         Text(p.$2, style: const TextStyle(color: WKColors.muted)),
                         const SizedBox(height: 4),
-                        Text(p.$4, maxLines: 2, style: const TextStyle(color: WKColors.muted, fontSize: 12)),
+                        Text(p.$4, style: const TextStyle(color: WKColors.muted, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -932,7 +816,7 @@ class StationsPage extends StatelessWidget {
                     children: [
                       Text(p.$3, style: const TextStyle(color: WKColors.blue, fontWeight: FontWeight.w900)),
                       IconButton(
-                        onPressed: () => toast(context, 'Abrindo rota para ${p.$1}.'),
+                        onPressed: () => toast(context, 'Rota para ${p.$1} será aberta aqui.'),
                         icon: const Icon(Icons.navigation_rounded),
                       ),
                     ],
@@ -956,9 +840,9 @@ class ProfilePage extends StatelessWidget {
       children: [
         const TitleBlock('Perfil / Histórico', 'Sua conta e movimentações no programa WK.'),
         const SizedBox(height: 16),
-        WKCard(
+        const WKCard(
           child: Row(
-            children: const [
+            children: [
               CircleAvatar(
                 radius: 31,
                 backgroundColor: Color(0xFF102E69),
@@ -1092,9 +976,10 @@ class WKCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: WKColors.card.withOpacity(.95),
+        color: WKColors.card.withOpacity(.96),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: WKColors.border.withOpacity(.9)),
+        boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 14, offset: Offset(0, 7))],
       ),
       child: child,
     );
@@ -1152,28 +1037,23 @@ class BackHeader extends StatelessWidget {
       children: [
         IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded)),
         const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
-          ),
-        ),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900))),
       ],
     );
   }
 }
 
-void toast(BuildContext c, String s) {
-  ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(s), backgroundColor: WKColors.card2));
+void toast(BuildContext context, String text) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(text), backgroundColor: WKColors.card2),
+  );
 }
 
-void showWKSheet(BuildContext c, Widget w) {
+void showWKSheet(BuildContext context, Widget child) {
   showModalBottomSheet(
-    context: c,
+    context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => w,
+    builder: (_) => child,
   );
 }
