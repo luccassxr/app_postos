@@ -28,37 +28,51 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Validate WK logo asset
+      - name: Prepare official WK assets
         run: |
-          test -f assets/wk_logo.webp
-          ls -lh assets/wk_logo.webp
+          set -euo pipefail
+          test -s assets/wk_logo.b64
+          base64 --decode assets/wk_logo.b64 > assets/wk_logo.png
 
-      - name: Prepare WK assets
-        run: |
           python3 -m pip install --quiet pillow
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
 
-          logo_path = Path('assets/wk_logo.webp')
-          logo = Image.open(logo_path).convert('RGBA')
+          source = Path('assets/wk_logo.png')
+          image = Image.open(source).convert('RGBA')
+          image.load()
 
-          # Re-encode the source asset to guarantee a valid, Flutter-readable WebP.
-          logo.save(logo_path, 'WEBP', quality=96, method=6)
+          # Remove transparent margins so the WK logo is visible at the intended size.
+          alpha = image.getchannel('A')
+          bbox = alpha.getbbox()
+          if bbox:
+              image = image.crop(bbox)
+          image.save(source, 'PNG', optimize=True)
 
-          # Build a square launcher icon using the same official WK artwork.
-          canvas = Image.new('RGBA', (1024, 1024), '#020712')
-          mark = logo.copy()
-          mark.thumbnail((860, 860), Image.Resampling.LANCZOS)
+          # Launcher icon: dark WK background + official artwork centered.
+          canvas = Image.new('RGBA', (1024, 1024), (2, 7, 18, 255))
+          mark = image.copy()
+          mark.thumbnail((820, 820), Image.Resampling.LANCZOS)
           x = (1024 - mark.width) // 2
           y = (1024 - mark.height) // 2
           canvas.alpha_composite(mark, (x, y))
           canvas.convert('RGB').save('assets/wk_app_icon.png', 'PNG', optimize=True)
 
-          print('logo:', logo.size, 'icon:', canvas.size)
+          # Re-open generated files so CI fails here if either image is invalid.
+          Image.open('assets/wk_logo.png').verify()
+          Image.open('assets/wk_app_icon.png').verify()
+          print('WK assets generated successfully')
           PY
-          file assets/wk_logo.webp assets/wk_app_icon.png
-          ls -lh assets/wk_logo.webp assets/wk_app_icon.png
+
+          file assets/wk_logo.png assets/wk_app_icon.png
+          ls -lh assets/wk_logo.png assets/wk_app_icon.png
+
+      - name: Point Flutter to PNG logo
+        run: |
+          sed -i 's#assets/wk_logo.webp#assets/wk_logo.png#g' pubspec.yaml
+          sed -i 's#assets/wk_logo.webp#assets/wk_logo.png#g' lib/main.dart
+          grep -n "wk_logo" pubspec.yaml lib/main.dart
 
       - name: Generate Android project
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
@@ -80,7 +94,7 @@ jobs:
 
       - name: Verify APK
         run: |
-          test -f build/app/outputs/flutter-apk/app-debug.apk
+          test -s build/app/outputs/flutter-apk/app-debug.apk
           ls -lh build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK
