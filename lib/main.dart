@@ -219,18 +219,238 @@ class BenefitsScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends StatelessWidget { const ProfileScreen({super.key}); @override Widget build(BuildContext context) => AnimatedBuilder(animation: AppController.instance, builder: (_, __) { final app = AppController.instance, user = app.user!; return ListView(padding: const EdgeInsets.all(18), children: [
-  const Text('Perfil', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)), Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text(user.email), Text(user.phone), Text('CPF: ${maskCpf(user.cpf)}'), Text('ID: ${user.id}'), Text('${app.points} pontos', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))]))),
-  OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())), icon: const Icon(Icons.receipt_long), label: const Text('Histórico completo')),
-  if (kDebugMode) FilledButton.tonalIcon(onPressed: () => showDialog(context: context, builder: (_) => const DemoFuelingDialog()), icon: const Icon(Icons.developer_mode), label: const Text('Ferramenta de desenvolvimento')),
-  OutlinedButton.icon(onPressed: app.logout, icon: const Icon(Icons.logout), label: const Text('Sair')),
-]); }); }
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
 
-class HistoryScreen extends StatelessWidget { const HistoryScreen({super.key}); @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Histórico')), body: AnimatedBuilder(animation: AppController.instance, builder: (_, __) { final items = AppController.instance.transactions; return ListView(padding: const EdgeInsets.all(18), children: items.isEmpty ? [const Text('Nenhuma movimentação registrada.')] : [for (final item in items) TransactionTile(item)]; })); }
-class TransactionTile extends StatelessWidget { const TransactionTile(this.item, {super.key}); final TransactionModel item; @override Widget build(BuildContext context) { final redemption = item.type == TransactionType.couponRedemption; return Card(child: ListTile(leading: Icon(redemption ? Icons.local_offer : Icons.local_gas_station), title: Text(redemption ? 'Cupom utilizado' : item.stationName), subtitle: Text('${formatDate(item.date)}${item.fuel.isEmpty ? '' : ' • ${item.fuel}'}'), trailing: Text('${item.points > 0 ? '+' : ''}${item.points} pts', style: TextStyle(color: item.points >= 0 ? AppColors.success : AppColors.danger, fontWeight: FontWeight.bold)))); } }
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: AppController.instance,
+        builder: (_, __) {
+          final app = AppController.instance;
+          final user = app.user!;
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const Text(
+                'Perfil',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(user.email),
+                      Text(user.phone),
+                      Text('CPF: ${maskCpf(user.cpf)}'),
+                      Text('ID: ${user.id}'),
+                      Text(
+                        '${app.points} pontos',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                ),
+                icon: const Icon(Icons.receipt_long),
+                label: const Text('Histórico completo'),
+              ),
+              if (kDebugMode)
+                FilledButton.tonalIcon(
+                  onPressed: () => showDialog(
+                    context: context,
+                    builder: (_) => const DemoFuelingDialog(),
+                  ),
+                  icon: const Icon(Icons.developer_mode),
+                  label: const Text('Ferramenta de desenvolvimento'),
+                ),
+              OutlinedButton.icon(
+                onPressed: app.logout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Sair'),
+              ),
+            ],
+          );
+        },
+      );
+}
 
-class DemoFuelingDialog extends StatefulWidget { const DemoFuelingDialog({super.key}); @override State<DemoFuelingDialog> createState() => _DemoFuelingDialogState(); }
-class _DemoFuelingDialogState extends State<DemoFuelingDialog> { final amount = TextEditingController(), liters = TextEditingController(); var station = StationService.stations.first; String fuel = 'Gasolina'; @override void dispose() { amount.dispose(); liters.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => AlertDialog(title: const Text('Somente desenvolvimento'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [DropdownButtonFormField(initialValue: station, items: [for (final item in StationService.stations) DropdownMenuItem(value: item, child: Text(item.name))], onChanged: (value) => setState(() => station = value!)), const SizedBox(height: 10), DropdownButtonFormField(initialValue: fuel, items: [for (final item in ['Gasolina', 'Etanol', 'Diesel S10', 'Diesel S500']) DropdownMenuItem(value: item, child: Text(item))], onChanged: (value) => setState(() => fuel = value!)), const SizedBox(height: 10), TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor em R\$')), const SizedBox(height: 10), TextField(controller: liters, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Litros (opcional)'))])), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')), FilledButton(onPressed: submit, child: const Text('Simular'))]);
-  Future<void> submit() async { final value = double.tryParse(amount.text.replaceAll(',', '.')), volume = double.tryParse(liters.text.replaceAll(',', '.')); if (value == null || value <= 0) { showMessage(context, 'Informe um valor válido.'); return; } try { final transaction = await AppController.instance.recordDemoFueling(station: station, amount: value, fuel: fuel, liters: volume); if (mounted) { Navigator.pop(context); showMessage(context, 'Abastecimento simulado: +${transaction.points} pontos.'); } } on ArgumentError catch (error) { if (mounted) showMessage(context, error.message?.toString() ?? 'Valor inválido.'); } }
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Histórico')),
+        body: AnimatedBuilder(
+          animation: AppController.instance,
+          builder: (_, __) {
+            final items = AppController.instance.transactions;
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: items.isEmpty
+                  ? [const Text('Nenhuma movimentação registrada.')]
+                  : [
+                      for (final item in items) TransactionTile(item),
+                    ],
+            );
+          },
+        ),
+      );
+}
+
+class TransactionTile extends StatelessWidget {
+  const TransactionTile(this.item, {super.key});
+
+  final TransactionModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final redemption = item.type == TransactionType.couponRedemption;
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          redemption ? Icons.local_offer : Icons.local_gas_station,
+        ),
+        title: Text(redemption ? 'Cupom utilizado' : item.stationName),
+        subtitle: Text(
+          '${formatDate(item.date)}'
+          "${item.fuel.isEmpty ? '' : ' • ${item.fuel}'}",
+        ),
+        trailing: Text(
+          '${item.points > 0 ? '+' : ''}${item.points} pts',
+          style: TextStyle(
+            color: item.points >= 0 ? AppColors.success : AppColors.danger,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DemoFuelingDialog extends StatefulWidget {
+  const DemoFuelingDialog({super.key});
+
+  @override
+  State<DemoFuelingDialog> createState() => _DemoFuelingDialogState();
+}
+
+class _DemoFuelingDialogState extends State<DemoFuelingDialog> {
+  final amount = TextEditingController();
+  final liters = TextEditingController();
+  var station = StationService.stations.first;
+  String fuel = 'Gasolina';
+
+  @override
+  void dispose() {
+    amount.dispose();
+    liters.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Somente desenvolvimento'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField(
+                initialValue: station,
+                items: [
+                  for (final item in StationService.stations)
+                    DropdownMenuItem(value: item, child: Text(item.name)),
+                ],
+                onChanged: (value) => setState(() => station = value!),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField(
+                initialValue: fuel,
+                items: [
+                  for (final item in [
+                    'Gasolina',
+                    'Etanol',
+                    'Diesel S10',
+                    'Diesel S500',
+                  ])
+                    DropdownMenuItem(value: item, child: Text(item)),
+                ],
+                onChanged: (value) => setState(() => fuel = value!),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Valor em R\$'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: liters,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Litros (opcional)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(onPressed: submit, child: const Text('Simular')),
+        ],
+      );
+
+  Future<void> submit() async {
+    final value = double.tryParse(amount.text.replaceAll(',', '.'));
+    final volume = double.tryParse(liters.text.replaceAll(',', '.'));
+    if (value == null || value <= 0) {
+      showMessage(context, 'Informe um valor válido.');
+      return;
+    }
+    try {
+      final transaction = await AppController.instance.recordDemoFueling(
+        station: station,
+        amount: value,
+        fuel: fuel,
+        liters: volume,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        showMessage(
+          context,
+          'Abastecimento simulado: +${transaction.points} pontos.',
+        );
+      }
+    } on ArgumentError catch (error) {
+      if (mounted) {
+        showMessage(
+          context,
+          error.message?.toString() ?? 'Valor inválido.',
+        );
+      }
+    }
+  }
 }
