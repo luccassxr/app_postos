@@ -14,35 +14,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - name: Generate Android project
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
-
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze functional app
-        run: flutter analyze lib/main_functional.dart lib/app_state.dart --no-fatal-infos
-
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
       - name: Build debug APK
-        run: flutter build apk --debug --target lib/main_functional.dart
-
+        run: flutter build apk --debug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: wk-cliente-functional-debug-apk
+          name: wk-cliente-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 30

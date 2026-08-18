@@ -1,39 +1,28 @@
 # WK Cliente
 
-MVP do aplicativo do Grupo WK para clientes da rede de postos.
+MVP Flutter/Android do programa de fidelidade da rede de postos WK.
 
-## Estado atual
+## Funcionalidades
 
-Primeira versão funcional da interface em Flutter com dados de demonstração e navegação entre:
+- cadastro com validação, senha armazenada como hash e prevenção de CPF/e-mail duplicados;
+- login por e-mail ou CPF, sessão persistente e logout;
+- QR de identificação contendo apenas `WKCLIENT:<customerId>`;
+- pontos calculados por service (`R$ 1,00 = 1 ponto`, descartando centavos);
+- extrato persistente de abastecimentos e resgates;
+- cupons com validade, custo, saldo e proteção contra resgate duplicado;
+- busca nas seis unidades iniciais;
+- simulador de abastecimento visível somente em builds debug.
 
-- Splash
-- Login
-- Cadastro
-- Início
-- Benefícios e cupons
-- Promoções
-- Postos
-- Perfil e histórico
-
-A identidade visual segue os mockups aprovados: fundo azul-marinho/preto, azul elétrico, vermelho WK, cartões escuros e tipografia clara.
+A persistência atual usa `SharedPreferences` e é explicitamente destinada ao MVP local. O contrato `CustomerRepository` permite trocar a implementação por Firebase. Créditos de pontos deverão ser gravados somente por backend confiável no ambiente de produção.
 
 ## Executar
 
-Este repositório contém o código Flutter do aplicativo. Se as pastas de plataforma ainda não existirem no seu computador, rode uma vez:
-
 ```bash
-flutter create . --platforms=android
+flutter create . --platforms=android --org com.grupowk --project-name app_postos
 flutter pub get
+flutter analyze
+flutter test
 flutter run
 ```
 
-Depois disso, os arquivos `lib/` permanecem como a implementação do WK Cliente.
-
-## Próximas etapas
-
-- Firebase Authentication
-- Cloud Firestore
-- QR Code real do cliente
-- Cupons persistentes
-- Localização real dos postos
-- Integração com WK Operação / PDV / ERP
+Não há logos ou imagens externas. `BrandLogo` usa temporariamente um ícone do Flutter.
