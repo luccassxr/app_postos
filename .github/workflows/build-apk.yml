@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +31,20 @@ jobs:
       - name: Generate Android project
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
 
+      - name: Set app name
+        run: sed -i 's/android:label="app_postos"/android:label="WK Cliente"/' android/app/src/main/AndroidManifest.xml
+
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Prepare official WK launcher icon
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          convert assets/wk_logo.webp -background '#020712' -gravity center -resize 760x760 -extent 1024x1024 assets/wk_app_icon.png
+
+      - name: Generate Android launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Build debug APK
         run: flutter build apk --debug
