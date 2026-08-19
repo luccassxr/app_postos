@@ -36,12 +36,12 @@ jobs:
         run: flutter analyze
       - name: Test
         run: flutter test
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: wk-cliente-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: wk-cliente-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
