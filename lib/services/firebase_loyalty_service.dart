@@ -3,13 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/transaction_model.dart';
 
 class FirebaseLoyaltyService {
-  FirebaseLoyaltyService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirebaseLoyaltyService({FirebaseFirestore? firestore}) : _firestore = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _transactions(String customerId) =>
-      _firestore.collection('customers').doc(customerId).collection('transactions');
+      _db.collection('customers').doc(customerId).collection('transactions');
 
   Stream<List<TransactionModel>> watchTransactions(String customerId) {
     return _transactions(customerId)
@@ -20,7 +21,8 @@ class FirebaseLoyaltyService {
               final rawDate = data['date'];
               final date = rawDate is Timestamp
                   ? rawDate.toDate()
-                  : DateTime.tryParse(rawDate?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+                  : DateTime.tryParse(rawDate?.toString() ?? '') ??
+                      DateTime.fromMillisecondsSinceEpoch(0);
               final typeName = data['type']?.toString() ?? 'fueling';
               final type = TransactionType.values.firstWhere(
                 (value) => value.name == typeName,
