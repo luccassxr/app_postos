@@ -34,6 +34,10 @@ jobs:
           sed -i 's/WK Cliente/Grupo WK/g' lib/main.dart
       - name: Apply compact customer home layout
         run: python3 tool/compact_customer_home.py
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
       - name: Normalize customer banner image
         run: |
           ffmpeg -y -i assets/images/banner_abasteca_pontos.jpg -map_metadata -1 -pix_fmt yuvj420p -q:v 2 /tmp/banner_abasteca_pontos.jpg
