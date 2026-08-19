@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
@@ -11,6 +13,7 @@ import 'repositories/local_customer_repository.dart';
 import 'services/auth_service.dart';
 import 'services/coupon_service.dart';
 import 'services/firebase_customer_auth_service.dart';
+import 'services/firebase_loyalty_service.dart';
 import 'services/loyalty_service.dart';
 import 'services/qr_service.dart';
 
@@ -20,6 +23,7 @@ class AppController extends ChangeNotifier {
         firebaseAuth = useFirebaseAuth
             ? FirebaseCustomerAuthService(repository)
             : null,
+        firebaseLoyalty = useFirebaseAuth ? FirebaseLoyaltyService() : null,
         loyalty = const LoyaltyService();
 
   static final instance = AppController(
@@ -30,15 +34,21 @@ class AppController extends ChangeNotifier {
   final CustomerRepository repository;
   final AuthService auth;
   final FirebaseCustomerAuthService? firebaseAuth;
+  final FirebaseLoyaltyService? firebaseLoyalty;
   final LoyaltyService loyalty;
   final couponService = CouponService();
   final qrService = QrService();
+
   UserModel? _user;
+  List<TransactionModel> _remoteTransactions = const [];
+  StreamSubscription<List<TransactionModel>>? _transactionsSubscription;
 
   UserModel? get user => _user;
   bool get isLoggedIn => _user != null;
+  bool get usesRemoteLoyalty => firebaseLoyalty != null;
 
   List<TransactionModel> get transactions {
+    if (usesRemoteLoyalty) return List.unmodifiable(_remoteTransactions);
     final result = repository.transactions
         .where((item) => item.customerId == _user?.id)
         .toList()
@@ -48,8 +58,16 @@ class AppController extends ChangeNotifier {
 
   int get points => loyalty.balance(transactions);
   String get qrPayload => qrService.generate(_user!.id);
-  bool isRedeemed(String couponId) =>
-      repository.redeemedCouponKeys.contains('${_user!.id}:$couponId');
+  bool isRedeemed(String couponId) {
+    if (usesRemoteLoyalty) {
+      return transactions.any(
+        (item) =>
+            item.type == TransactionType.couponRedemption &&
+            item.couponId == couponId,
+      );
+    }
+    return repository.redeemedCouponKeys.contains('${_user!.id}:$couponId');
+  }
 
   Future<void> initialize() async {
     if (identical(this, AppController.instance)) {
@@ -62,6 +80,7 @@ class AppController extends ChangeNotifier {
 
     if (firebaseAuth != null) {
       _user = await firebaseAuth!.restoreAuthenticatedUser();
+      await _startRemoteLoyalty();
       return;
     }
 
@@ -91,6 +110,7 @@ class AppController extends ChangeNotifier {
         password: password,
         acceptedTerms: acceptedTerms,
       );
+      await _startRemoteLoyalty();
     } else {
       _user = await auth.register(
         name: name,
@@ -108,10 +128,14 @@ class AppController extends ChangeNotifier {
     _user = firebaseAuth != null
         ? await firebaseAuth!.login(identifier, password)
         : await auth.login(identifier, password);
+    await _startRemoteLoyalty();
     notifyListeners();
   }
 
   Future<void> logout() async {
+    await _transactionsSubscription?.cancel();
+    _transactionsSubscription = null;
+    _remoteTransactions = const [];
     _user = null;
     if (firebaseAuth != null) {
       await firebaseAuth!.logout();
@@ -121,6 +145,21 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _startRemoteLoyalty() async {
+    await _transactionsSubscription?.cancel();
+    _transactionsSubscription = null;
+    _remoteTransactions = const [];
+
+    if (firebaseLoyalty == null || _user == null) return;
+
+    _transactionsSubscription = firebaseLoyalty!
+        .watchTransactions(_user!.id)
+        .listen((items) {
+      _remoteTransactions = items;
+      notifyListeners();
+    });
+  }
+
   Future<TransactionModel> recordDemoFueling({
     required StationModel station,
     required double amount,
@@ -128,6 +167,12 @@ class AppController extends ChangeNotifier {
     double? liters,
   }) async {
     if (_user == null) throw StateError('Nenhum cliente autenticado.');
+    if (usesRemoteLoyalty) {
+      throw StateError(
+        'O WK Cliente não pode creditar abastecimentos. Use o WK Operações.',
+      );
+    }
+
     final item = TransactionModel(
       id: 'TX-${DateTime.now().microsecondsSinceEpoch}',
       customerId: _user!.id,
@@ -152,6 +197,16 @@ class AppController extends ChangeNotifier {
       balance: points,
       alreadyRedeemed: isRedeemed(coupon.id),
     );
+
+    if (firebaseLoyalty != null) {
+      return firebaseLoyalty!.redeemCoupon(
+        customerId: _user!.id,
+        couponId: coupon.id,
+        title: coupon.title,
+        pointsCost: coupon.pointsCost,
+      );
+    }
+
     final item = TransactionModel(
       id: 'TX-${DateTime.now().microsecondsSinceEpoch}',
       customerId: _user!.id,
@@ -171,5 +226,11 @@ class AppController extends ChangeNotifier {
     });
     notifyListeners();
     return item;
+  }
+
+  @override
+  void dispose() {
+    _transactionsSubscription?.cancel();
+    super.dispose();
   }
 }
