@@ -12,6 +12,24 @@ service cloud.firestore {
         && request.auth.uid == userId;
 
       allow delete: if false;
+
+      match /transactions/{transactionId} {
+        allow read: if request.auth != null
+          && request.auth.uid == userId;
+
+        // O cliente só pode criar débito de resgate. Crédito de abastecimento
+        // será criado pelo WK Operações/backend em uma etapa posterior.
+        allow create: if request.auth != null
+          && request.auth.uid == userId
+          && transactionId == 'redeem_' + request.resource.data.couponId
+          && request.resource.data.customerId == userId
+          && request.resource.data.type == 'couponRedemption'
+          && request.resource.data.points is int
+          && request.resource.data.points < 0
+          && request.resource.data.amount == 0;
+
+        allow update, delete: if false;
+      }
     }
 
     match /{document=**} {
