@@ -28,6 +28,10 @@ jobs:
           cache: true
       - name: Generate Android project
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
+      - name: Set Clube WK display name
+        run: |
+          sed -i 's/android:label="app_postos"/android:label="Clube WK"/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/WK Cliente/Clube WK/g' lib/main.dart
       - name: Get dependencies
         run: flutter pub get
       - name: Generate Android launcher icon
@@ -41,7 +45,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: wk-cliente-release-apk
+          name: clube-wk-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
