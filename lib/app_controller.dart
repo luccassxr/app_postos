@@ -36,9 +36,14 @@ class AppController extends ChangeNotifier {
   bool isRedeemed(String couponId) => repository.redeemedCouponKeys.contains('${_user!.id}:$couponId');
 
   Future<void> initialize() async {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Firebase belongs to the production singleton. Unit tests create isolated
+    // controllers with in-memory repositories and must not require platform
+    // channels or a native Firebase runtime.
+    if (identical(this, AppController.instance)) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
     await repository.initialize();
     final session = repository.sessionUserId;
     for (final item in repository.users) { if (item.id == session) { _user = item; break; } }
