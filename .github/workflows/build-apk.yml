@@ -32,6 +32,8 @@ jobs:
         run: |
           sed -i 's/android:label="app_postos"/android:label="Grupo WK"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/WK Cliente/Grupo WK/g' lib/main.dart
+      - name: Apply compact customer home layout
+        run: python3 tool/compact_customer_home.py
       - name: Get dependencies
         run: flutter pub get
       - name: Generate Android launcher icon
