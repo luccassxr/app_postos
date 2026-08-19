@@ -30,6 +30,8 @@ jobs:
         run: flutter create . --platforms=android --org com.grupowk --project-name app_postos
       - name: Get dependencies
         run: flutter pub get
+      - name: Generate Android launcher icon
+        run: dart run flutter_launcher_icons
       - name: Analyze
         run: flutter analyze
       - name: Test
