@@ -1,0 +1,1 @@
+home_banner.png is sourced from the repository asset and used by CI.
