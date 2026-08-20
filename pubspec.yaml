@@ -26,7 +26,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/wk_app_icon.png
-    - assets/images/banner_abasteca_pontos.jpg
+    - assets/images/home_banner.png
 
 flutter_launcher_icons:
   android: true
