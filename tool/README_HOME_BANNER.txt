@@ -1,0 +1,1 @@
+The customer home banner asset is assets/images/home_banner.png.
