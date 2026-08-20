@@ -36,6 +36,8 @@ jobs:
         run: python3 tool/compact_customer_home.py
       - name: Use uploaded home banner
         run: python3 tool/use_home_banner.py
+      - name: Apply final home refinements
+        run: python3 tool/refine_home_details.py
       - name: Get dependencies
         run: flutter pub get
       - name: Generate Android launcher icon
