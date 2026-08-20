@@ -46,7 +46,7 @@ for old, new in replacements.items():
 
 if 'class _PromoBanner extends StatelessWidget' not in text:
     anchor = 'class _Dot extends StatelessWidget {'
-    banner = '''class _PromoBanner extends StatelessWidget {
+    banner = r'''class _PromoBanner extends StatelessWidget {
   const _PromoBanner();
 
   @override
