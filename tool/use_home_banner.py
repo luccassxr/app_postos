@@ -10,4 +10,12 @@ if old not in text:
     raise SystemExit('Promo banner placeholder not found')
 
 text = text.replace(old, new)
+
+# Remove the temporary Flutter-built promo banner classes so flutter analyze
+# does not fail with unused_element after switching to the uploaded asset.
+start = text.find('class _PromoBanner extends StatelessWidget {')
+end = text.find('class _Dot extends StatelessWidget {')
+if start != -1 and end != -1 and end > start:
+    text = text[:start] + text[end:]
+
 path.write_text(text, encoding='utf-8')
