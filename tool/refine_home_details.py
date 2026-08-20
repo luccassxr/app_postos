@@ -10,6 +10,24 @@ text = text.replace(
     'style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),',
 )
 
+# Keep the larger fuel price visible on narrow cards. FittedBox scales down only
+# when absolutely necessary, while preserving the 18px bold emphasis normally.
+old_price = '''                      Text(
+                        price,
+                        maxLines: 1,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),
+                      ),'''
+new_price = '''                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          price,
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),
+                        ),
+                      ),'''
+text = text.replace(old_price, new_price)
+
 old_nav = '''        bottomNavigationBar: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: navigate,
