@@ -11,6 +11,7 @@ replacements = {
     "radius: 22,": "radius: 19,",
     "const SizedBox(height: 20),\n              InkWell(\n                borderRadius: BorderRadius.circular(18),": "const SizedBox(height: 14),\n              InkWell(\n                borderRadius: BorderRadius.circular(16),",
     "borderRadius: BorderRadius.circular(18),\n                  child: AspectRatio(\n                    aspectRatio: 2.34,": "borderRadius: BorderRadius.circular(16),\n                  child: AspectRatio(\n                    aspectRatio: 2.60,",
+    "child: Image.asset(\n                      'assets/images/banner_abasteca_pontos.jpg',\n                      fit: BoxFit.cover,\n                    ),": "child: const _PromoBanner(),",
     "const SizedBox(height: 18),\n              Container(\n                padding: const EdgeInsets.all(16),": "const SizedBox(height: 14),\n              Container(\n                padding: const EdgeInsets.all(13),",
     "borderRadius: BorderRadius.circular(20),": "borderRadius: BorderRadius.circular(18),",
     "width: 62,\n                      height: 62,": "width: 52,\n                      height: 52,",
@@ -42,5 +43,93 @@ replacements = {
 for old, new in replacements.items():
     if old in text:
         text = text.replace(old, new)
+
+if 'class _PromoBanner extends StatelessWidget' not in text:
+    anchor = 'class _Dot extends StatelessWidget {'
+    banner = '''class _PromoBanner extends StatelessWidget {
+  const _PromoBanner();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0B2D78), Color(0xFF06173E)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.red, width: 1.4),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Expanded(
+              flex: 7,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Abasteça e\nganhe pontos',
+                    style: TextStyle(fontSize: 22, height: 1.0, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Mais abastecimentos,\nmais vantagens para você!',
+                    style: TextStyle(fontSize: 12.5, height: 1.2),
+                  ),
+                  SizedBox(height: 10),
+                  _PromoButton(),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 5,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.fromBorderSide(BorderSide(color: AppColors.primary, width: 5)),
+                      boxShadow: [
+                        BoxShadow(color: Color(0x55FF1830), spreadRadius: 7, blurRadius: 0),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.local_gas_station_rounded, size: 74, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _PromoButton extends StatelessWidget {
+  const _PromoButton();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: AppColors.red, width: 1.2),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Ver benefícios', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+            SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 18),
+          ],
+        ),
+      );
+}
+
+'''
+    text = text.replace(anchor, banner + anchor)
 
 path.write_text(text, encoding='utf-8')
