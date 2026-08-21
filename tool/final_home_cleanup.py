@@ -161,21 +161,22 @@ if old_shell not in text:
     raise SystemExit('Fixed points/navigation shell not found')
 text = text.replace(old_shell, new_shell, 1)
 
-# Home: enough bottom space so the final movement card can scroll fully above
-# the floating points strip and the navigation bar.
+# Home: add generous clearance so the very last content can scroll fully above
+# the floating strip + navigation area on smaller Android screens.
 for current in [
     'padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),',
     'padding: const EdgeInsets.fromLTRB(14, 10, 14, 44),',
     'padding: const EdgeInsets.fromLTRB(14, 10, 14, 48),',
+    'padding: const EdgeInsets.fromLTRB(14, 10, 14, 160),',
 ]:
     text = text.replace(
         current,
-        'padding: const EdgeInsets.fromLTRB(14, 10, 14, 160),',
+        'padding: const EdgeInsets.fromLTRB(14, 10, 14, 210),',
         1,
     )
 
-# Benefits: the page is also scrollable and now has the same fixed points strip.
-# Reserve enough scroll padding so the final coupon/promotion can always move above it.
+# Benefits: reserve even more bottom scroll room because coupon cards are taller
+# and must clear both the floating points strip and the bottom navigation completely.
 for current in [
     'padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),',
     'padding: const EdgeInsets.fromLTRB(18, 14, 18, 150),',
@@ -183,7 +184,7 @@ for current in [
 ]:
     text = text.replace(
         current,
-        'padding: const EdgeInsets.fromLTRB(18, 14, 18, 160),',
+        'padding: const EdgeInsets.fromLTRB(18, 14, 18, 240),',
         1,
     )
 
