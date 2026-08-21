@@ -13,16 +13,12 @@ if card_call_start != -1:
         block_end += len(block_end_marker)
         text = text[:block_start] + text[block_end:]
 
-# The Scaffold reserves the bottomNavigationBar area, but leave some breathing room
-# at the end of the Home list so the last content is comfortable to scroll into view.
 text = text.replace(
     "padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),",
     "padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),",
     1,
 )
 
-# refine_home_details.py creates a temporary simple points bar. Replace it with the
-# final compact, code-only points strip, fixed immediately above NavigationBar.
 old_bottom = r'''        bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -112,12 +108,15 @@ new_bottom = r'''        bottomNavigationBar: AnimatedBuilder(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _PointsStrip(
-                      pontosAtuais: points,
-                      pontosProximaRecompensa: _nextRewardGoal(points),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: _PointsStrip(
+                        pontosAtuais: points,
+                        pontosProximaRecompensa: _nextRewardGoal(points),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                        ),
                       ),
                     ),
                     NavigationBar(
@@ -157,7 +156,6 @@ if old_bottom not in text:
     raise SystemExit('Temporary fixed points strip not found')
 text = text.replace(old_bottom, new_bottom, 1)
 
-# Remove any older generated points implementation before injecting the final one.
 for start_marker in [
     'int _nextBenefitGoal(int pontosUsuario) {',
     'int _nextRewardGoal(int pontosAtuais) {',
@@ -206,136 +204,139 @@ class _PointsStrip extends StatelessWidget {
         ? 0.0
         : (safePoints / pontosProximaRecompensa).clamp(0.0, 1.0).toDouble();
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 86,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF071A38), Color(0xFF06152F)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: double.infinity,
+          height: 86,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF071A38), Color(0xFF0A2046)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border, width: 1.1),
           ),
-          border: Border(
-            top: BorderSide(color: Color(0xFFE91746), width: 1.4),
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 9, 14, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryDark,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primary, width: 1.6),
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Center(
-                            child: Icon(Icons.stars_rounded, color: Colors.white, size: 27),
-                          ),
-                          Positioned(
-                            right: -2,
-                            bottom: 1,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
-                                color: AppColors.red,
-                                shape: BoxShape.circle,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 9, 14, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryDark,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primary, width: 1.6),
+                        ),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Center(
+                              child: Icon(Icons.stars_rounded, color: Colors.white, size: 27),
+                            ),
+                            Positioned(
+                              right: -2,
+                              bottom: 1,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.red,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Seus pontos',
-                            maxLines: 1,
-                            style: TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${_formatPoints(safePoints)} pts',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            '${_formatPoints(pontosRestantes)} pts para próxima recompensa',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.white70,
-                      size: 24,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 76,
-              right: 42,
-              bottom: 5,
-              height: 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Container(color: const Color(0xFF0A285F)),
-                    FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progresso,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE91746),
-                          borderRadius: BorderRadius.all(Radius.circular(999)),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Seus pontos',
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${_formatPoints(safePoints)} pts',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              '${_formatPoints(pontosRestantes)} pts para próxima recompensa',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.white70,
+                        size: 24,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                left: 76,
+                right: 42,
+                bottom: 5,
+                height: 5,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(color: const Color(0xFF0A285F)),
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: progresso,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE91746),
+                            borderRadius: BorderRadius.all(Radius.circular(999)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
