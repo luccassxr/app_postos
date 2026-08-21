@@ -3,18 +3,78 @@ from pathlib import Path
 path = Path('lib/main.dart')
 text = path.read_text(encoding='utf-8')
 
-# Let the Home continue visually behind transparent spacing around the fixed
-# points strip. The NavigationBar remains fixed/opaque below it.
-main_shell = text.find('class _MainShellState extends State<MainShell> {')
-if main_shell != -1:
-    scaffold = text.find('Widget build(BuildContext context) => Scaffold(', main_shell)
-    if scaffold != -1:
-        insert_at = text.find('\n', scaffold) + 1
-        if '        extendBody: true,\n' not in text[scaffold:scaffold + 140]:
-            text = text[:insert_at] + '        extendBody: true,\n' + text[insert_at:]
+# Do NOT extend the Scaffold body behind the fixed points strip. The Scaffold must
+# reserve the complete bottom area so the Home can scroll all the way to the end.
+text = text.replace('        extendBody: true,\n', '')
+
+# Remove the old large "Seus pontos" card that still exists inside the Home list.
+# The only points UI that should remain is the fixed _PointsStrip above NavigationBar.
+recent_marker = "              const Text(\n                'Movimentações recentes'"
+recent_index = text.find(recent_marker)
+if recent_index != -1:
+    points_index = text.rfind("const Text('Seus pontos'", 0, recent_index)
+    if points_index != -1:
+        container_start = text.rfind('              Container(', 0, points_index)
+        if container_start != -1:
+            # Include the SizedBox immediately before the old card when present.
+            remove_start = text.rfind('              const SizedBox(height:', 0, container_start)
+            if remove_start == -1 or container_start - remove_start > 90:
+                remove_start = container_start
+
+            # Find the matching close of Container(...), counting parentheses.
+            open_paren = text.find('(', container_start)
+            depth = 0
+            end = -1
+            in_single = False
+            in_double = False
+            escaped = False
+            for i in range(open_paren, recent_index):
+                ch = text[i]
+                if escaped:
+                    escaped = False
+                    continue
+                if ch == '\\':
+                    escaped = True
+                    continue
+                if ch == "'" and not in_double:
+                    in_single = not in_single
+                    continue
+                if ch == '"' and not in_single:
+                    in_double = not in_double
+                    continue
+                if in_single or in_double:
+                    continue
+                if ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                    if depth == 0:
+                        semi = text.find(';', i, min(i + 8, recent_index))
+                        end = semi + 1 if semi != -1 else i + 1
+                        break
+            if end != -1:
+                # Remove trailing spacer after the old card too.
+                trailing = text.find('              const SizedBox(height:', end, recent_index)
+                if trailing != -1 and trailing - end < 100:
+                    trailing_end = text.find('\n', trailing)
+                    if trailing_end != -1:
+                        end = trailing_end + 1
+                text = text[:remove_start] + text[end:]
+
+# Keep comfortable bottom padding in the scrollable Home. Since the Scaffold now
+# reserves the fixed strip + NavigationBar, this lets the final section clear them.
+text = text.replace(
+    'padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),',
+    'padding: const EdgeInsets.fromLTRB(14, 10, 14, 44),',
+    1,
+)
+text = text.replace(
+    'padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),',
+    'padding: const EdgeInsets.fromLTRB(14, 10, 14, 44),',
+    1,
+)
 
 # Replace the fuel cards with a layout that gives the full price enough width.
-# Title + icon share the first row; price spans the card width underneath.
 fuel_start = text.find('class _FuelCard extends StatelessWidget {')
 fuel_end = text.find('class _HomeAction', fuel_start)
 if fuel_start != -1 and fuel_end != -1:
@@ -97,7 +157,7 @@ if fuel_start != -1 and fuel_end != -1:
 else:
     raise SystemExit('Fuel card markers not found')
 
-# Make the benefits/coupons page more compact and professional on phones.
+# Make the benefits/coupons page compact and professional on phones.
 replacements = {
     'const BrandLogo(size: 72),': 'const BrandLogo(size: 58),',
     'fontSize: 22,\n                            fontWeight: FontWeight.w900,': 'fontSize: 19,\n                            fontWeight: FontWeight.w900,',
