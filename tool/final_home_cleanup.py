@@ -21,9 +21,8 @@ if recent_index != -1:
         if remove_start != -1:
             text = text[:remove_start] + text[recent_index:]
 
-# The points strip used to live inside bottomNavigationBar, forcing Flutter to reserve
-# a large opaque rectangle behind it. Move the strip into a transparent overlay over
-# the Home body, while keeping only NavigationBar in bottomNavigationBar.
+# The points strip floats above the app content so no opaque rectangle is drawn
+# around it. Keep it visible on Home (index 0) and Benefits (index 2).
 old_shell = r'''  @override
   Widget build(BuildContext context) => Scaffold(
         body: SafeArea(
@@ -108,7 +107,7 @@ new_shell = r'''  @override
                 ],
               ),
             ),
-            if (index == 0)
+            if (index == 0 || index == 2)
               Positioned(
                 left: 12,
                 right: 12,
@@ -162,8 +161,8 @@ if old_shell not in text:
     raise SystemExit('Fixed points/navigation shell not found')
 text = text.replace(old_shell, new_shell, 1)
 
-# Because the strip now floats over the Home, give the scrollable Home enough bottom
-# space to bring its last card fully above the overlay instead of hiding behind it.
+# Home: enough bottom space so the final movement card can scroll fully above
+# the floating points strip and the navigation bar.
 for current in [
     'padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),',
     'padding: const EdgeInsets.fromLTRB(14, 10, 14, 44),',
@@ -171,7 +170,20 @@ for current in [
 ]:
     text = text.replace(
         current,
-        'padding: const EdgeInsets.fromLTRB(14, 10, 14, 150),',
+        'padding: const EdgeInsets.fromLTRB(14, 10, 14, 160),',
+        1,
+    )
+
+# Benefits: the page is also scrollable and now has the same fixed points strip.
+# Reserve enough scroll padding so the final coupon/promotion can always move above it.
+for current in [
+    'padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),',
+    'padding: const EdgeInsets.fromLTRB(18, 14, 18, 150),',
+    'padding: const EdgeInsets.fromLTRB(18, 14, 18, 160),',
+]:
+    text = text.replace(
+        current,
+        'padding: const EdgeInsets.fromLTRB(18, 14, 18, 160),',
         1,
     )
 
