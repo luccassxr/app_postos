@@ -1,5 +1,5 @@
 name: app_postos
-description: MVP funcional do aplicativo WK Cliente.
+description: MVP funcional do aplicativo Grupo WK.
 publish_to: "none"
 version: 1.0.0+7
 
@@ -24,6 +24,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
 
 flutter_launcher_icons:
   android: true
