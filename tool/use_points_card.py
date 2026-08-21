@@ -101,52 +101,49 @@ new_bottom = r'''        bottomNavigationBar: AnimatedBuilder(
           animation: AppController.instance,
           builder: (context, _) {
             final points = AppController.instance.points;
-            return Material(
-              color: const Color(0xFF020712),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                      child: _PointsStrip(
-                        pontosAtuais: points,
-                        pontosProximaRecompensa: _nextRewardGoal(points),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                        ),
+            return SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                    child: _PointsStrip(
+                      pontosAtuais: points,
+                      pontosProximaRecompensa: _nextRewardGoal(points),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HistoryScreen()),
                       ),
                     ),
-                    NavigationBar(
-                      selectedIndex: index,
-                      onDestinationSelected: navigate,
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.home_outlined),
-                          selectedIcon: Icon(Icons.home_rounded),
-                          label: 'Início',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.local_gas_station_outlined),
-                          selectedIcon: Icon(Icons.local_gas_station_rounded),
-                          label: 'Postos',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.star_border_rounded),
-                          selectedIcon: Icon(Icons.star_rounded),
-                          label: 'Benefícios',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.person_outline),
-                          selectedIcon: Icon(Icons.person_rounded),
-                          label: 'Perfil',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                  NavigationBar(
+                    selectedIndex: index,
+                    onDestinationSelected: navigate,
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: 'Início',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.local_gas_station_outlined),
+                        selectedIcon: Icon(Icons.local_gas_station_rounded),
+                        label: 'Postos',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.star_border_rounded),
+                        selectedIcon: Icon(Icons.star_rounded),
+                        label: 'Benefícios',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.person_outline),
+                        selectedIcon: Icon(Icons.person_rounded),
+                        label: 'Perfil',
+                      ),
+                    ],
+                  ),
+                ],
               ),
             );
           },
