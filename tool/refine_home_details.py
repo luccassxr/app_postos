@@ -5,16 +5,59 @@ text = path.read_text(encoding='utf-8')
 
 text = text.replace('scale: 1.045,', 'scale: 1.085,')
 text = text.replace("'Posto em destaque'", "'Posto mais próximo'")
+
+# Keep fuel prices visible but larger and easier to read.
 text = text.replace(
     'style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, height: 1.0),',
+    'style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, height: 1.0),',
+)
+text = text.replace(
     'style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, height: 1.0),',
+    'style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, height: 1.0),',
+)
+text = text.replace(
+    "fontSize: 10.5, fontWeight: FontWeight.w400, height: 1.0",
+    "fontSize: 11.5, fontWeight: FontWeight.w400, height: 1.0",
+)
+text = text.replace(
+    "fontSize: 10.5, fontWeight: FontWeight.w800",
+    "fontSize: 11.5, fontWeight: FontWeight.w800",
+)
+text = text.replace(
+    "radius: 15,\n                  backgroundColor: accent,\n                  child: Icon(icon, color: Colors.white, size: 16),",
+    "radius: 17,\n                  backgroundColor: accent,\n                  child: Icon(icon, color: Colors.white, size: 18),",
 )
 
-# Keep fuel prices readable inside the three narrow cards without compression.
-text = text.replace(
-    'style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),',
-    'style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, height: 1.0),',
-)
+# Upgrade the fuel section header and show a temporary update timestamp.
+# This label is display-only for now and can later be fed by WK Frentista/Firestore.
+old_header = '''              const Row(
+                children: [
+                  Icon(Icons.local_gas_station_rounded, size: 20),
+                  SizedBox(width: 8),
+                  Text('Combustíveis', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                ],
+              ),'''
+new_header = '''              const Row(
+                children: [
+                  Icon(Icons.local_gas_station_rounded, size: 21),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Combustíveis hoje',
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    'Atualizado 21/08 às 14:19',
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),'''
+text = text.replace(old_header, new_header)
 
 old_nav = '''        bottomNavigationBar: NavigationBar(
           selectedIndex: index,
