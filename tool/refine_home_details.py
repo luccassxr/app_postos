@@ -7,37 +7,14 @@ text = text.replace('scale: 1.045,', 'scale: 1.085,')
 text = text.replace("'Posto em destaque'", "'Posto mais próximo'")
 text = text.replace(
     'style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, height: 1.0),',
-    'style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),',
+    'style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, height: 1.0),',
 )
 
-# Keep the fuel value at the requested 18px bold size without FittedBox,
-# so the typography stays consistent instead of being visually compressed.
-old_fitted_price = '''                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          price,
-                          maxLines: 1,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),
-                        ),
-                      ),'''
-normal_price = '''                      Text(
-                        price,
-                        maxLines: 1,
-                        overflow: TextOverflow.visible,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),
-                      ),'''
-text = text.replace(old_fitted_price, normal_price)
-
-# Remove the large points card from inside the Home scroll. The points balance
-# remains available only in the fixed bar above the bottom navigation.
-points_marker = "const Text('Seus pontos', style: TextStyle(color: AppColors.muted))"
-marker_index = text.find(points_marker)
-if marker_index != -1:
-    block_start = text.rfind('              const SizedBox(height: 22),\n              Container(', 0, marker_index)
-    next_section = text.find("              const Text(\n                'Movimentações recentes'", marker_index)
-    if block_start != -1 and next_section != -1:
-        text = text[:block_start] + text[next_section:]
+# Keep fuel prices readable inside the three narrow cards without compression.
+text = text.replace(
+    'style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, height: 1.0),',
+    'style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, height: 1.0),',
+)
 
 old_nav = '''        bottomNavigationBar: NavigationBar(
           selectedIndex: index,
